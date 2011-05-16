@@ -1,0 +1,129 @@
+A Javascript implementation of Steven J. Fortune's algorithm to
+efficiently compute Voronoi diagrams.
+
+Files
+-----
+
+rhill-voronoi-core.js
+  Where the Voronoi object is implemented.
+
+rhill-voronoi.demo1.php
+rhill-voronoi.demo2.php
+  Demo pages to demonstrate usage of the Voronoi object.
+
+rhill-voronoi.php
+  Demo page, shows the inner working of Fortune's algorithm
+rhill-voronoi.js
+  A modified implementation of rhill-voronoi-core.js, companion
+  script of rhill-voronoi.php. 
+
+excanvas/*
+  ExplorerCanvas, giving pre-HTML5 Internet Explorer the ability
+  to make sense of HTML5's canvas element. Pulled from
+  http://code.google.com/p/explorercanvas/
+
+Above pages available at
+  http://www.raymondhill.net/voronoi/
+
+
+Main object: Voronoi
+--------------------
+
+A Javascript object which allows to compute a Voronoi diagram.
+The Voronoi object doesn't render the resulting Voronoi diagram,
+the user is responsible for rendering the diagram.
+
+
+Usage
+-----
+
+Roughly:
+
+  var voronoi = new Voronoi();
+  var bbox = {xl:0,xr:800,yt:0,yb:600};
+  voronoi.setSites([ /* an array of vertices */ ]);
+  var diagram = voronoi.compute(bbox);
+
+The returned 'diagram' variable is a Javascript object with the
+following properties:
+
+  diagram.sites:
+    An array of unordered, unique Voronoi.Site objects underlying the
+    Voronoi diagram.
+
+  diagram.edges:
+    An array of unordered, unique Voronoi.Edge objects making up the
+    Voronoi diagram.
+
+  diagram.cells:
+    A dictionary of Voronoi.Cell objects making up the Voronoi diagram.
+    The Voronoi.Cell objects in the dictionary are keyed on their
+    associated Voronoi.Site's unique id.
+
+  diagram.execTime:
+    The time it took to compute the Voronoi diagram, in milliseconds.
+
+Objects:
+
+  Voronoi:
+    The Voronoi object which computes a Voronoi diagram.
+
+  Voronoi.Edge:
+    id: a unique id identifying this Voronoi edge.
+    lSite: the Voronoi.Site object at the left of this Voronoi.Edge object.
+    rSite: the Voronoi.Site object at the right of this Voronoi.Edge object (can be null).
+    va: the Voronoi.Vertex object defining the start point (relative to the Voronoi.Site
+      on the left) of this Voronoi.Edge object.
+    vb: the Voronoi.Vertex object defining the end point (relative to Voronoi.Site on
+      the left) of this Voronoi.Edge object.
+
+  Voronoi.Cells:
+    A collection of Voronoi.Cell objects, keyed on the id of the
+    associated Voronoi.Site object.
+    numCells: the number of Voronoi.Cell objects in the collection.
+
+  Voronoi.Cell:
+    site: the Voronoi.Site object associated with the Voronoi cell.
+    halfedges: an array of Voronoi.Halfedge objects, ordered counterclockwise, defining the
+      polygon for this Voronoi cell.
+
+  Voronoi.Halfedge:
+    site: the Voronoi.Site object owning this Voronoi.Halfedge object.
+    edge: a reference to the unique Voronoi.Edge object underlying this Voronoi.Halfedge object.
+    getStartpoint(): a method returning a Voronoi.Vertex for the start point of this
+      halfedge. Keep in mind halfedges are always countercockwise.
+    getEndpoint(): a method returning a Voronoi.Vertex for the end point of this
+      halfedge. Keep in mind halfedges are always countercockwise.
+
+  Voronoi.Vertex:
+    x: the x coordinate.
+    y: the y coordinate.
+    Really can be any object exhibiting 'x' and 'y' property
+    members.
+
+
+License
+-------
+
+Copyright (c) 2010 Raymond Hill (http://www.raymondhill.net/blog/?p=9)
+
+Licensed under The MIT License
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
