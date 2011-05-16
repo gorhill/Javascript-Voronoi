@@ -7,8 +7,8 @@ Files
 rhill-voronoi-core.js
   Where the Voronoi object is implemented.
 
-rhill-voronoi.demo1.php
-rhill-voronoi.demo2.php
+rhill-voronoi-demo1.php
+rhill-voronoi-demo2.php
   Demo pages to demonstrate usage of the Voronoi object.
 
 rhill-voronoi.php
