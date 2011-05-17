@@ -33,7 +33,7 @@ Date: Sep. 21, 2010
 Description: This is my personal Javascript implementation of
 Steven Fortune's algorithm to generate Voronoi diagrams.
 
-Portions of this software use, or depend on the work of:
+Portions of this software use, depend, or was inspired by the work of:
 
   "Fortune's algorithm" by Steven J. Fortune: For his clever
   algorithm to compute Voronoi diagrams.
@@ -47,13 +47,12 @@ Portions of this software use, or depend on the work of:
 
 History:
 
-2010-09-21:
-  First release.
-
 2011-02-14:
   Lower epsilon from 1e-5 to 1e-4, to fix problem reported at
   http://www.raymondhill.net/blog/?p=9#comment-1414
 
+2010-09-21:
+  First release.
 
 *****
 
@@ -163,7 +162,6 @@ Voronoi.prototype.lessThanOrEqualWithEpsilon = function(a,b){return (a-b)<1e-4;}
 
 Voronoi.prototype.Beachsection = function(site) {
 	this.site = site;
-	this.slot = 0;
 	this.edge = null;
 	// below is strictly for caching purpose
 	this.sweep = -Infinity;
@@ -339,23 +337,31 @@ Voronoi.prototype.findInsertionPoint = function(x, sweep) {
 	};
 
 // INFO: Chromium profiling shows this to be a hot spot
-Voronoi.prototype.findDeletionPoint = function(target, sweep) {
-	var arcs = this.arcs;
-	var n = arcs.length;
+Voronoi.prototype.findDeletionPoint = function(x, sweep) {
+	var n = this.arcs.length;
 	if (!n) { return 0; }
 	var l = 0;
 	var r = n;
 	var i;
-	var slot;
+	var xcut;
 	while (l<r) {
 		i = (l+r)>>1;
-		slot = arcs[i].slot;
-		if (this.lessThanWithEpsilon(target,slot)) {
+		xcut = this.leftBreakPoint(i,sweep);
+		if (this.lessThanWithEpsilon(x,xcut)) {
 			r = i;
 			continue;
 			}
-		else if (this.greaterThanWithEpsilon(target,slot)) {
+		if (this.greaterThanWithEpsilon(x,xcut)) {
 			l = i+1;
+			continue;
+			}
+		xcut = this.rightBreakPoint(i,sweep);
+		if (this.greaterThanWithEpsilon(x,xcut)) {
+			l = i+1;
+			continue;
+			}
+		if (this.lessThanWithEpsilon(x,xcut)) {
+			r = i;
 			continue;
 			}
 		return i;
@@ -413,19 +419,17 @@ Voronoi.prototype.removeArc = function(event) {
 	var x = event.center.x;
 	var y = event.center.y;
 	var sweep = event.y;
-	var deletionPoint = this.findDeletionPoint(event.arc.slot, sweep);
+	var deletionPoint = this.findDeletionPoint(x, sweep);
 	// there could be more than one empty arc at the deletion point, this
 	// happens when more than two edges are linked by the same vertex,
 	// so we will collect all those edges by looking up both sides of
 	// the deletion point
 	// look left
-	var lArc;
 	var iLeft = deletionPoint;
 	while (iLeft-1 > 0 && this.arcs[iLeft-1].circleEvent && this.verticesAreEqual(event.center,this.arcs[iLeft-1].circleEvent.center) ) {
 		iLeft--;
 		}
 	// look right
-	var rArc;
 	var iRight = deletionPoint;
 	while (iRight+1 < this.arcs.length && this.arcs[iRight+1].circleEvent && this.verticesAreEqual(event.center,this.arcs[iRight+1].circleEvent.center) ) {
 		iRight++;
@@ -433,6 +437,7 @@ Voronoi.prototype.removeArc = function(event) {
 
 	// walk through all the collapsed beach sections and set the start point
 	// of their left edge
+	var lArc, rArc;
 	for (var iArc=iLeft; iArc<=iRight+1; iArc++) {
 		lArc = this.arcs[iArc-1];
 		rArc = this.arcs[iArc];
@@ -462,7 +467,6 @@ Voronoi.prototype.addArc = function(site) {
 	// find insertion point of new beach section on the beachline
 	var newArc = new this.Beachsection(site);
 	var insertionPoint = this.findInsertionPoint(site.x,site.y);
-	var lArc, rArc;
 
 	// case: insert as last beach section, this case can happen only
 	// when *all* previously processed sites have exactly the same
@@ -478,16 +482,14 @@ Voronoi.prototype.addArc = function(site) {
 		// no edge is created
 		if (insertionPoint === 0) {return;}
 
-		// update slot position based on left beach section's slot position
-		lArc = this.arcs[insertionPoint-1];
-		newArc.slot = lArc.slot+10000;
-
 		// case: a new transition between two beach sections is
 		// created, create an edge for these two beach sections
-		newArc.edge = this.createEdge(lArc.site,newArc.site);
+		newArc.edge = this.createEdge(this.arcs[insertionPoint-1].site,newArc.site);
 
 		return;
 		}
+
+	var lArc, rArc;
 
 	// case: new beach section to insert falls exactly
 	// in between two existing beach sections:
@@ -528,9 +530,6 @@ Voronoi.prototype.addArc = function(site) {
 		// insert new beach section
 		this.arcs.splice(insertionPoint,0,newArc);
 
-		// set slot position based on left and right beach sections' slot positions
-		newArc.slot = (lArc.slot+rArc.slot)/2;
-
 		// check whether the left and right beach sections are collapsing
 		// and if so create circle events, to handle the point of collapse.
 		this.addCircleEvents(insertionPoint-1,site.y);
@@ -563,11 +562,6 @@ Voronoi.prototype.addArc = function(site) {
 	// insert new beach section into beachline
 	lArc = this.arcs[insertionPoint];
 	rArc = new this.Beachsection(lArc.site);
-
-	// set slot positions based on left and right beach sections' slot positions
-	var rrSlot = insertionPoint < this.arcs.length-1 ? this.arcs[insertionPoint+1].slot : lArc.slot+10000;
-	newArc.slot = (lArc.slot+rrSlot)/2;
-	rArc.slot = (newArc.slot+rrSlot)/2;
 
 	// insert new beach section into beachline
 	this.arcs.splice(insertionPoint+1,0,newArc,rArc);
@@ -619,7 +613,6 @@ Voronoi.prototype.addCircleEvents = function(iArc,sweep) {
 	if (!this.greaterThanOrEqualWithEpsilon(ybottom,sweep)) {return;}
 	var circEvent={
 		type: this.CIRCLE_EVENT,
-		arc: arc,
 		site: cSite,
 		x: circle.x,
 		y: ybottom,
@@ -1028,6 +1021,14 @@ Voronoi.prototype.closeCells = function(bbox) {
 				// if we reach this point, cell needs to be closed by walking
 				// counterclockwise along the bounding box until it connects
 				// to next halfedge in the list
+/*
+				if (!this.equalWithEpsilon(startpoint.x,xl) &&
+				    !this.equalWithEpsilon(startpoint.x,xr) &&
+				    !this.equalWithEpsilon(startpoint.y,yt) &&
+				    !this.equalWithEpsilon(startpoint.y,yb)) {
+					debugger;
+					}
+*/
 				va = new this.Vertex(endpoint.x,endpoint.y);
 				// walk downward along left side
 				if (this.equalWithEpsilon(endpoint.x,xl) && this.lessThanWithEpsilon(endpoint.y,yb)) {
