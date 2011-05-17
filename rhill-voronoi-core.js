@@ -702,27 +702,10 @@ Voronoi.prototype.queuePop = function() {
 	return this.circEvents.pop();
 	};
 
-Voronoi.prototype.queuePushSite = function(o) {
-	var q = this.siteEvents;
-	var r = q.length;
-	if (r) {
-		var l = 0;
-		var i, c;
-		while (l<r) {
-			i = (l+r)>>1;
-			c = o.y-q[i].y;
-			if (!c) {c = o.x-q[i].x;}
-			if (c>0) {r = i;}
-			else if (c<0) {l = i+1;}
-			else {return; /*Duplicate sites not allowed, quietly ignored*/ }
-			}
-		q.splice(l,0,o);
-		}
-	else {
-		q.push(o);
-		}
-	};
-
+// rhill 2011-05-17:
+//   Using Array.sort() after an Array.push() is out of question,
+//   horrible exponential decrease in performance -- expected, but
+//   I wanted to confirm. Confirmed.
 Voronoi.prototype.queuePushCircle = function(o) {
 	var q = this.circEvents;
 	var r = q.length;
@@ -1022,6 +1005,8 @@ Voronoi.prototype.closeCells = function(bbox) {
 				// counterclockwise along the bounding box until it connects
 				// to next halfedge in the list
 /*
+				// Debugging code to alert of instances of 'unclosable'
+				// polygons
 				if (!this.equalWithEpsilon(startpoint.x,xl) &&
 				    !this.equalWithEpsilon(startpoint.x,xr) &&
 				    !this.equalWithEpsilon(startpoint.y,yt) &&
@@ -1080,16 +1065,37 @@ Voronoi.prototype.compute = function(bbox) {
 	// init events queue
 	this.siteEvents = [];
 	this.circEvents = [];
-	var nSites = this.sites.length;
-	var site;
-	for (var iSite=nSites-1; iSite>=0; iSite--) {
-		site = this.sites[iSite];
+
+	// rhill 2011-05017:
+	//   Sort Voronoi sites first, for performance purpose. This
+	//   way we no longer need Voronoi.queuePushSite()
+	var sites = this.sites;
+	sites.sort(function(a,b){
+		var r = a.y - b.y;
+		if (!r) {
+			r = a.x - b.x;
+			}
+		return r;
+		});
+
+	// populate site events queue
+	var nSites = sites.length,
+		iSite = nSites,
+		q = this.siteEvents,
+		site, previous;
+	while (--iSite >= 0) {
+		site = sites[iSite];
+		// prune voided sites
 		if (!site.id) {
-			this.sites.splice(iSite,1);
+			sites.splice(iSite,1);
+			continue;
 			}
-		else {
-			this.queuePushSite({type:this.SITE_EVENT, x:site.x, y:site.y, site:site});
+		// avoid duplicate sites
+		if (previous && site.y == previous.y && site.x == previous.x) {
+			continue;
 			}
+		q.push({type:this.SITE_EVENT, x:site.x, y:site.y, site:site});
+		previous = site;
 		}
 
 	// init internal state
