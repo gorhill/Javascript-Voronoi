@@ -683,13 +683,18 @@ Voronoi.prototype.queueSanitize = function() {
 		}
 	};
 
+Voronoi.prototype.queuePopSite = function() {
+	var site = this.siteEvents.pop();
+	return {type:this.SITE_EVENT, x:site.x, y:site.y, site:site};
+	};
+
 Voronoi.prototype.queuePop = function() {
 	// we will return a site or circle event
 	var siteEvent = this.siteEvents.length > 0 ? this.siteEvents[this.siteEvents.length-1] : null;
 	var circEvent = this.circEvents.length > 0 ? this.circEvents[this.circEvents.length-1] : null;
 	// if one and only one is null, the other is a valid event
 	if ( Boolean(siteEvent) !== Boolean(circEvent) ) {
-		return siteEvent ? this.siteEvents.pop() : this.circEvents.pop();
+		return siteEvent ? this.queuePopSite() : this.circEvents.pop();
 		}
 	// both queues are empty
 	if (!siteEvent) {
@@ -697,7 +702,7 @@ Voronoi.prototype.queuePop = function() {
 		}
 	// both queues have valid events, return 'earliest'
 	if (siteEvent.y < circEvent.y || (siteEvent.y == circEvent.y && siteEvent.x < circEvent.x)) {
-		return this.siteEvents.pop();
+		return this.queuePopSite();
 		}
 	return this.circEvents.pop();
 	};
@@ -1069,13 +1074,11 @@ Voronoi.prototype.compute = function(bbox) {
 	// rhill 2011-05017:
 	//   Sort Voronoi sites first, for performance purpose. This
 	//   way we no longer need Voronoi.queuePushSite()
-	var sites = this.sites;
+	var sites = this.sites.slice(0);
 	sites.sort(function(a,b){
 		var r = a.y - b.y;
-		if (!r) {
-			r = a.x - b.x;
-			}
-		return r;
+		if (r) {return r;}
+		return a.x - b.x;
 		});
 
 	// populate site events queue
@@ -1094,7 +1097,7 @@ Voronoi.prototype.compute = function(bbox) {
 		if (previous && site.y == previous.y && site.x == previous.x) {
 			continue;
 			}
-		q.push({type:this.SITE_EVENT, x:site.x, y:site.y, site:site});
+		q.push(site);
 		previous = site;
 		}
 
