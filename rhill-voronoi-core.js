@@ -28,8 +28,8 @@ THE SOFTWARE.
 
 Author: Raymond Hill (rhill@raymondhill.net)
 File: rhill-voronoi-core.js
-Version: 0.90
-Date: Sep. 21, 2010
+Version: 0.95
+Date: May 16, 2011
 Description: This is my personal Javascript implementation of
 Steven Fortune's algorithm to generate Voronoi diagrams.
 
@@ -43,16 +43,42 @@ Portions of this software use, depend, or was inspired by the work of:
   to efficiently clip a line within a rectangle.
   http://www.skytopia.com/project/articles/compsci/clipping.html
 
+  "rbtree" by Franck Bui-Huu
+  https://github.com/fbuihuu/libtree/blob/master/rb.c
+  I ported to Javascript the C code of a Red-Black tree implementation by
+  Franck Bui-Huu, and further altered the code for Javascript efficiency
+  and to very specifically fit the purpose of holding the beachline (key
+  is a mutable vector-like rather than an unmutable data point), and unused
+  code paths have been removed. Each node in the tree is actually a beach
+  section on the beachline. Using a tree structure for the beachline remove
+  the need to lookup the beach section in the array at removal time, as
+  now a circle event can safely hold a reference to its associated
+  beach section (thus findDeletionPoint() is no longer needed). This
+  finally take care of nagging finite arithmetic precision issues arising
+  at lookup time, such that epsilon could be brought down to 1e-9 (from 1e-4).
+
 *****
 
 History:
 
-2011-02-14:
+0.95 (19 May 2011):
+  No longer using Javascript array to keep track of the beach sections of
+  the beachline, now using Red-Black tree.
+
+  The move to a binary tree was unavoidable, as I ran into finite precision
+  arithmetic problems when I started to use sites with fractional values.
+  The problem arose when the code had to find the arc associated with a
+  triggered Fortune circle event: the collapsing arc was not always properly
+  found due to finite precision arithmetic-related errors. Using a tree structure
+  eliminate the need to look-up a beachsection in the array structure
+  (findDeletionPoint()), and allowed to bring back epsilon down to 1e-9.
+
+0.91(21 September 2010):
   Lower epsilon from 1e-5 to 1e-4, to fix problem reported at
   http://www.raymondhill.net/blog/?p=9#comment-1414
 
-2010-09-21:
-  First release.
+0.90 (21 September 2010):
+  First version.
 
 *****
 
@@ -63,35 +89,18 @@ Usage:
   // yt, yb means y top, y bottom
   var bbox = {xl:0, xr:800, yt:0, yb:600};
   var voronoi = new Voronoi();
-  // pass an array of objects, each of which exhibits x and y properties
-  voronoi.setSites(vertices);
   // pass an object which exhibits xl, xr, yt, yb properties. The bounding
   // box will be used to connect unbound edges, and to close open cells
-  result = voronoi.compute(bbox);
+  result = voronoi.compute(vertices, bbox);
   // render, further analyze, etc.
 
 Return value:
   An object with the following properties:
 
-  result.sites = an array of unordered, unique Voronoi.Site objects underlying the Voronoi diagram.
   result.edges = an array of unordered, unique Voronoi.Edge objects making up the Voronoi diagram.
   result.cells = a dictionary of Voronoi.Cell object making up the Voronoi diagram. The Voronoi.Cell
     in the dictionary are keyed on their associated Voronoi.Site's unique id.
   result.execTime = the time it took to compute the Voronoi diagram, in milliseconds.
-
-Voronoi.Site object:
-  id: a unique id identifying this Voronoi site.
-  x: the x position of this Voronoi site.
-  y: the y position of this Voronoi site.
-  destroy(): mark this Voronoi site object as destroyed, it will be removed from the
-    internal collection and won't be part of the next Voronoi diagram computation.
-
-  When adding vertices to the Voronoi object, through Voronoi.setSites() or
-  Voronoi.addSites(), an internal collection of matching Voronoi.Site object is maintained,
-  which is read accessible at all time through Voronoi.getSites(). You are allowed to
-  change the x and/or y properties of any Voronoi.Site object in the array, before
-  launching the computation of the Voronoi diagram. However, do *not* change the id
-  of any Voronoi.Site object, this could break the computation of the Voronoi diagram.
 
 Voronoi.Edge object:
   id: a unique id identifying this Voronoi edge.
@@ -127,22 +136,29 @@ Voronoi.Vertex object:
   x: the x coordinate.
   y: the y coordinate.
 
+TODO: Get rid of Voronoi.sortHalfedgesCallback() choke point. Rationale: Vertices are
+      defined in a deterministic way, such that they can be added in an orderly way,
+      the tricky part is while an edge is completely unconnected at creation time.
+      Investigate.
+TODO: Let the user close the Voronoi cells, do not do it automatically. Not only let
+      him close the cells, but also allow him to close more than once using a different
+      bounding box for the same Voronoi diagram.
 */
 
 /*global self */
 
 function Voronoi() {
-	this.sites = [];
+	this.siteidGenerator = 1;
 	this.siteEvents = [];
 	this.circEvents = [];
-	this.arcs = [];
-	this.edges = []; /*TODO: use an object to hold edges?*/
-	this.cells = new this.Cells();
+	this.beachline = new this.Beachline();
+	this.edges = null; /*TODO: use an object to hold edges?*/
+	this.cells = null;
 	}
 
-Voronoi.prototype.SITE_EVENT = 0;
-Voronoi.prototype.CIRCLE_EVENT = 1;
-Voronoi.prototype.VOID_EVENT = -1;
+Voronoi.prototype.VOID_EVENT = 0;
+Voronoi.prototype.SITE_EVENT = 1;
+Voronoi.prototype.CIRCLE_EVENT = 2;
 Voronoi.prototype.sqrt = self.Math.sqrt;
 Voronoi.prototype.abs = self.Math.abs;
 Voronoi.prototype.floor = self.Math.floor;
@@ -153,27 +169,359 @@ Voronoi.prototype.max = self.Math.max;
 Voronoi.prototype.pow = self.Math.pow;
 Voronoi.prototype.isNaN = self.isNaN;
 Voronoi.prototype.PI = self.Math.PI;
-Voronoi.prototype.EPSILON = 1e-4;
-Voronoi.prototype.equalWithEpsilon = function(a,b){return this.abs(a-b)<1e-4;};
-Voronoi.prototype.greaterThanWithEpsilon = function(a,b){return (a-b)>1e-4;};
-Voronoi.prototype.greaterThanOrEqualWithEpsilon = function(a,b){return (b-a)<1e-4;};
-Voronoi.prototype.lessThanWithEpsilon = function(a,b){return (b-a)>1e-4;};
-Voronoi.prototype.lessThanOrEqualWithEpsilon = function(a,b){return (a-b)<1e-4;};
+Voronoi.prototype.EPSILON = 1e-9;
+Voronoi.prototype.equalWithEpsilon = function(a,b){return this.abs(a-b)<1e-9;};
+Voronoi.prototype.greaterThanWithEpsilon = function(a,b){return (a-b)>1e-9;};
+Voronoi.prototype.greaterThanOrEqualWithEpsilon = function(a,b){return (b-a)<1e-9;};
+Voronoi.prototype.lessThanWithEpsilon = function(a,b){return (b-a)>1e-9;};
+Voronoi.prototype.lessThanOrEqualWithEpsilon = function(a,b){return (a-b)<1e-9;};
 
-Voronoi.prototype.Beachsection = function(site) {
-	this.site = site;
-	this.edge = null;
-	// below is strictly for caching purpose
-	this.sweep = -Infinity;
-	this.lid = 0;
-	this.circleEvent = undefined;
+Voronoi.prototype.Beachline = function() {
+	this.reset();
 	};
 
-Voronoi.prototype.Beachsection.prototype.sqrt = self.Math.sqrt;
+Voronoi.prototype.Beachline.prototype.reset = function() {
+	this.root = null;
+	this.numBeachsections = 0;
+	};
+
+// Red-Black tree code
+Voronoi.prototype.Beachline.prototype.insertSuccessor = function(node, successor) {
+	var parent, grandpa, uncle;
+	if (node) {
+		if (node.right) {
+			// in-place expansion of node.right.getFirst();
+			node = node.right;
+			while (node.left) {node = node.left;}
+			node.left = successor;
+			}
+		else {
+			node.right = successor;
+			}
+		parent = node;
+		}
+	else {
+		this.root = successor;
+		parent = null;
+		}
+	successor.left = successor.right = null;
+	successor.parent = parent;
+	successor.isRed = true;
+	// Fixup the modified tree by recoloring nodes and performing
+	// rotations (2 at most) hence the red-black tree properties are
+	// preserved.
+	node = successor;
+	while (parent && parent.isRed) {
+		grandpa = parent.parent;
+		if (parent === grandpa.left) {
+			uncle = grandpa.right;
+			if (uncle && uncle.isRed) {
+				parent.isRed = false;
+				uncle.isRed = false;
+				grandpa.isRed = true;
+				node = grandpa;
+				}
+			else {
+				if (node === parent.right) {
+					this.rotateLeft(parent);
+					node = parent;
+					parent = node.parent;
+					}
+				parent.isRed = false;
+				grandpa.isRed = true;
+				this.rotateRight(grandpa);
+				}
+			}
+		else {
+			uncle = grandpa.left;
+			if (uncle && uncle.isRed) {
+				parent.isRed = false;
+				uncle.isRed = false;
+				grandpa.isRed = true;
+				node = grandpa;
+				}
+			else {
+				if (node === parent.left) {
+					this.rotateRight(parent);
+					node = parent;
+					parent = node.parent;
+					}
+				parent.isRed = false;
+				grandpa.isRed = true;
+				this.rotateLeft(grandpa);
+				}
+			}
+		parent = node.parent;
+		}
+	this.root.isRed = false;
+	this.numBeachsections++;
+	};
+
+// Red-Black tree code
+Voronoi.prototype.Beachline.prototype.remove = function(node) {
+	var parent = node.parent,
+		left = node.left,
+		right = node.right,
+		next;
+	if (!left) {
+		next = right;
+		}
+	else if (!right) {
+		next = left;
+		}
+	else {
+		next = right.getFirst();
+		}
+	if (parent) {
+		if (parent.left === node) {
+			parent.left = next;
+			}
+		else {
+			parent.right = next;
+			}
+		}
+	else {
+		this.root = next;
+		}
+	var isRed;
+	if (left && right) {
+		isRed = next.isRed;
+		next.isRed = node.isRed;
+		next.left = left;
+		left.parent = next;
+		if (next !== right) {
+			parent = next.parent;
+			next.parent = node.parent;
+			node = next.right;
+			parent.left = node;
+			next.right = right;
+			right.parent = next;
+			}
+		else {
+			next.parent = parent;
+			parent = next;
+			node = next.right;
+			}
+		}
+	else {
+		isRed = node.isRed;
+		node = next;
+		}
+	// 'node' is now the sole successor's child and 'parent' its
+	// new parent (since the successor can have been moved)
+	if (node) {
+		node.parent = parent;
+		}
+	// the 'easy' cases
+	if (isRed) {return;}
+	if (node && node.isRed) {
+		node.isRed = false;
+		return;
+		}
+	// the other cases
+	var sibling;
+	do {
+		if (node === this.root) {
+			break;
+			}
+		if (node === parent.left) {
+			sibling = parent.right;
+			if (sibling.isRed) {
+				sibling.isRed = false;
+				parent.isRed = true;
+				this.rotateLeft(parent);
+				sibling = parent.right;
+				}
+			if ((sibling.left && sibling.left.isRed) || (sibling.right && sibling.right.isRed)) {
+				if (!sibling.right || !sibling.right.isRed) {
+					sibling.left.isRed = false;
+					sibling.isRed = true;
+					this.rotateRight(sibling);
+					sibling = parent.right;
+				}
+				sibling.isRed = parent.isRed;
+				parent.isRed = false;
+				sibling.right.isRed = false;
+				this.rotateLeft(parent);
+				node = this.root;
+				break;
+				}
+			}
+		else {
+			sibling = parent.left;
+			if (sibling.isRed) {
+				sibling.isRed = false;
+				parent.isRed = true;
+				this.rotateRight(parent);
+				sibling = parent.left;
+				}
+			if ((sibling.left && sibling.left.isRed) || (sibling.right && sibling.right.isRed)) {
+				if (!sibling.left || !sibling.left.isRed) {
+					sibling.right.isRed = false;
+					sibling.isRed = true;
+					this.rotateLeft(sibling);
+					sibling = parent.left;
+					}
+				sibling.isRed = parent.isRed;
+				parent.isRed = false;
+				sibling.left.isRed = false;
+				this.rotateRight(parent);
+				node = this.root;
+				break;
+				}
+			}
+		sibling.isRed = true;
+		node = parent;
+		parent = parent.parent;
+	} while (!node.isRed);
+	if (node) {node.isRed = false;}
+	this.numBeachsections--;
+	};
+
+// Red-Black tree code
+Voronoi.prototype.Beachline.prototype.rotateLeft = function(node) {
+	var p = node;
+	var q = node.right; /* can't be null */
+	var parent = p.parent;
+	if (parent) {
+		if (parent.left === p) {
+			parent.left = q;
+			}
+		else {
+			parent.right = q;
+			}
+		}
+	else {
+		this.root = q;
+		}
+	q.parent = parent;
+	p.parent = q;
+	p.right = q.left;
+	if (p.right) {
+		p.right.parent = p;
+		}
+	q.left = p;
+	};
+
+// Red-Black tree code
+Voronoi.prototype.Beachline.prototype.rotateRight = function(node) {
+	var p = node;
+	var q = node.left; /* can't be null */
+	var parent = p.parent;
+	if (parent) {
+		if (parent.left === p) {
+			parent.left = q;
+			}
+		else {
+			parent.right = q;
+			}
+		}
+	else {
+		this.root = q;
+		}
+	q.parent = parent;
+	p.parent = q;
+	p.left = q.right;
+	if (p.left) {
+		p.left.parent = p;
+		}
+	q.right = p;
+	};
+
+// For debugging purpose, I imported/adapted this code snippet from
+// http://eternallyconfuzzled.com/tuts/datastructures/jsw_tut_rbtree.aspx
+// in order to validate that the Red-Black tree code works correctly:
+//  "Because it might seem like the algorithms work for small trees, but
+//  then they break on large trees and you don't know why. With a tester
+//  function, we can be confident that the algorithm works, provided we
+//  slam it with enough data into a big enough tree (too large of a case
+//  to test by hand)."
+Voronoi.prototype.Beachline.prototype.validate = function(root) {
+	if (!root) {return 1;}
+	var left = root.left;
+	var right = root.right;
+	/* Consecutive red links */
+	if (root.isRed) {
+		if ((left && left.isRed) || (right && right.isRed)) {
+			throw 'RBTree.validate(): Red violation';
+			}
+		}
+	var lh = this.validate(left);
+	var rh = this.validate(right);
+	var directrix;
+	/* Invalid binary search tree */
+	var predecessor = root.getPrevious();
+	if (predecessor) {
+		var prepredecessor = predecessor.getPrevious();
+		if (prepredecessor) {
+			directrix = self.Math.max(root.site.y,predecessor.site.y,prepredecessor.site.y);
+			if (root.leftParabolicCut(predecessor.site,directrix) < predecessor.leftParabolicCut(prepredecessor.site,directrix)) {
+				throw 'RBTree.validate(): Binary tree violation';
+				}
+			}
+		}
+	var successor = root.getNext();
+	if (successor) {
+		var postsuccessor = successor.getNext();
+		if (postsuccessor) {
+			directrix = self.Math.max(root.site.y,successor.site.y,postsuccessor.site.y);
+			if (successor.leftParabolicCut(root.site,directrix) > postsuccessor.leftParabolicCut(successor.site,directrix)) {
+				throw 'RBTree.validate(): Binary tree violation';
+				}
+			}
+		}
+	/* Black height mismatch */
+	if (lh !== 0 && rh !== 0 && lh !== rh) {
+		throw 'RBTree.validate(): Black violation';
+		}
+	/* Only count black links */
+	if (lh !== 0 && rh !== 0) {
+		return root.isRed ? lh : lh+1;
+		}
+	return 0;
+	};
+
+// For debugging purpose only:
+Voronoi.prototype.Beachline.prototype.dump = function(sweep) {
+	console.log('Beachline: sweep at '+sweep.toFixed(3));
+	var node = this.root.getFirst();
+	var predecessor;
+	var successor;
+	var xl, xr;
+	var s;
+	while (node) {
+		predecessor = node.getPrevious();
+		successor = node.getNext();
+		xl = predecessor ? node.leftParabolicCut(predecessor.site,sweep) : -Infinity;
+		xr = successor ? successor.leftParabolicCut(node.site,sweep) : Infinity;
+		s = '\txl='+xl.toFixed(3)+', xr='+xr.toFixed(3)+', site={id:'+node.site.voronoiId+', x:'+node.site.x+', y:'+node.site.y+'}';
+		if (node.isCollapsing()) {
+			s += ', collapse at {x:'+node.circleEvent.x.toFixed(3)+', y:'+node.circleEvent.y.toFixed(3)+'}';
+			}
+		console.log(s);
+		node = successor;
+		}
+	this.validate(this.root);
+	};
+
+// Beachsection object
+Voronoi.prototype.Beachline.prototype.Beachsection = function(site) {
+	this.site = site;
+	this.edge = null;
+	// Caching stuff
+	this.sweep = -Infinity;
+	this.lSite = null;
+	this.circleEvent = undefined;
+	// Red-Black tree stuff
+	this.isRed = false;
+	this.parent = this.left = this.right = null;
+	};
+
+Voronoi.prototype.Beachline.prototype.Beachsection.prototype.sqrt = self.Math.sqrt;
 
 // given parabola 'site', return the intersection with parabola 'left'
 // immediately to the left of x
-Voronoi.prototype.Beachsection.prototype._leftParabolicCut = function(site,left,directrix) {
+Voronoi.prototype.Beachline.prototype.Beachsection.prototype._leftParabolicCut = function(site,lSite,directrix) {
 	// change code below at your own risk:
 	// care has been taken to reduce errors due to
 	// computers' finite arithmetic precision.
@@ -182,13 +530,13 @@ Voronoi.prototype.Beachsection.prototype._leftParabolicCut = function(site,left,
 	var rfocx = site.x;
 	var rfocy = site.y;
 	// parabola in degenerate case where focus is on directrix
-	if (rfocy == directrix) {return rfocx;}
-	var lfocx = left.x;
-	var lfocy = left.y;
+	if (rfocy === directrix) {return rfocx;}
+	var lfocx = lSite.x;
+	var lfocy = lSite.y;
 	// parabola in degenerate case where focus is on directrix
-	if (lfocy == directrix) {return lfocx;}
+	if (lfocy === directrix) {return lfocx;}
 	// both parabolas have same distance to directrix, thus break point is midway
-	if (rfocy == lfocy) {return (rfocx+lfocx)/2;}
+	if (rfocy === lfocy) {return (rfocx+lfocx)/2;}
 	// calculate break point the normal way
 	var pby2 = rfocy-directrix;
 	var plby2 = lfocy-directrix;
@@ -198,28 +546,72 @@ Voronoi.prototype.Beachsection.prototype._leftParabolicCut = function(site,left,
 	return (-b+this.sqrt(b*b-2*aby2*(hl*hl/(-2*plby2)-lfocy+plby2/2+rfocy-pby2/2)))/aby2+rfocx;
 	};
 
-// higher level method which caches result and attempt to reuse it
-Voronoi.prototype.Beachsection.prototype.leftParabolicCut=function(left,sweep){
-	if (this.sweep !== sweep || this.lid !== left.id) {
+// higher level method which caches parabolic cut result and attempt to reuse it
+Voronoi.prototype.Beachline.prototype.Beachsection.prototype.leftParabolicCut=function(lSite,sweep){
+	if (this.sweep !== sweep || this.lSite !== lSite) {
 		this.sweep = sweep;
-		this.lid = left.id;
-		this.lBreak = this._leftParabolicCut(this.site,left,sweep);
+		this.lSite = lSite;
+		this.lBreak = this._leftParabolicCut(this.site,lSite,sweep);
 		}
 	return this.lBreak;
 	};
 
-Voronoi.prototype.Beachsection.prototype.isCollapsing=function(){
-	return this.circleEvent !== undefined && this.circleEvent.type === Voronoi.prototype.CIRCLE_EVENT;
+Voronoi.prototype.Beachline.prototype.Beachsection.prototype.isCollapsing=function(){
+	return this.circleEvent !== undefined && this.circleEvent.type;
 	};
 
-Voronoi.prototype.Site = function(x,y) {
-	this.id = this.constructor.prototype.idgenerator++;
-	this.x = x;
-	this.y = y;
+// Red-Black tree code
+Voronoi.prototype.Beachline.prototype.Beachsection.prototype.getFirst = function() {
+	var node = this;
+	while (node.left) {
+		node = node.left;
+		}
+	return node;
 	};
 
-Voronoi.prototype.Site.prototype.destroy = function() {
-	this.id = 0;
+// Red-Black tree code
+Voronoi.prototype.Beachline.prototype.Beachsection.prototype.getLast = function() {
+	var node = this;
+	while (node.right) {
+		node = node.right;
+		}
+	return node;
+	};
+
+// Red-Black tree code
+Voronoi.prototype.Beachline.prototype.Beachsection.prototype.getPrevious = function() {
+	var node = this;
+	if (node.left) {
+		// in-place expansion of node.left.getLast();
+		node = node.left;
+		while (node.right) {node = node.right;}
+		return node;
+		}
+	var parent;
+	for (;;) {
+		parent = node.parent;
+		if (!parent || parent.left !== node) {break;}
+		node = parent;
+		}
+	return parent;
+	};
+
+// Red-Black tree code
+Voronoi.prototype.Beachline.prototype.Beachsection.prototype.getNext = function() {
+	var node = this;
+	if (node.right) {
+		// in-place expansion of node.right.getFirst();
+		node = node.right;
+		while (node.left) {node = node.left;}
+		return node;
+		}
+	var parent;
+	for (;;) {
+		parent = node.parent;
+		if (!parent || parent.right !== node) {break;}
+		node = parent;
+		}
+	return parent;
 	};
 
 Voronoi.prototype.Vertex = function(x,y) {
@@ -249,18 +641,17 @@ Voronoi.prototype.Cells = function() {
 	};
 
 Voronoi.prototype.Cells.prototype.addCell = function(cell) {
-	this[cell.site.id] = cell;
+	this[cell.site.voronoiId] = cell;
 	this.numCells++;
 	};
 
 Voronoi.prototype.Cells.prototype.removeCell = function(cell) {
-	delete this[cell.site.id];
+	delete this[cell.site.voronoiId];
 	this.numCells--;
 	};
 
 // prototype our inner classes, more efficient than having these Javascript
 // properties repeated for all instances.
-Voronoi.prototype.Site.prototype.idgenerator = 1;
 
 Voronoi.prototype.Edge.prototype.isLineSegment = function() {
 		return this.id !== 0 && Boolean(this.va) && Boolean(this.vb);
@@ -273,11 +664,11 @@ Voronoi.prototype.Halfedge.prototype.isLineSegment = function() {
 		};
 
 Voronoi.prototype.Halfedge.prototype.getStartpoint = function() {
-		return this.edge.lSite.id == this.site.id ? this.edge.va : this.edge.vb;
+		return this.edge.lSite === this.site ? this.edge.va : this.edge.vb;
 		};
 
 Voronoi.prototype.Halfedge.prototype.getEndpoint = function() {
-		return this.edge.lSite.id == this.site.id ? this.edge.vb : this.edge.va;
+		return this.edge.lSite === this.site ? this.edge.vb : this.edge.va;
 		};
 
 //
@@ -286,86 +677,23 @@ Voronoi.prototype.Halfedge.prototype.getEndpoint = function() {
 
 // calculate the left break point of a particular beach section,
 // given a particular sweep line
-Voronoi.prototype.leftBreakPoint = function(iarc, sweep) {
-	var arc = this.arcs[iarc];
+Voronoi.prototype.leftBreakPoint = function(arc, sweep) {
 	var site = arc.site;
-	if (site.y == sweep) {return site.x;}
-	if (iarc === 0) {return -Infinity;}
-	return arc.leftParabolicCut(this.arcs[iarc-1].site,sweep);
+	if (site.y === sweep) {return site.x;}
+	var lArc = arc.getPrevious();
+	if (!lArc) {return -Infinity;}
+	return arc.leftParabolicCut(lArc.site,sweep);
 	};
 
 // calculate the right break point of a particular beach section,
 // given a particular directrix
-Voronoi.prototype.rightBreakPoint = function(iarc, sweep) {
-	if (iarc < this.arcs.length-1) {
-		return this.leftBreakPoint(iarc+1,sweep);
+Voronoi.prototype.rightBreakPoint = function(arc, sweep) {
+	var rArc = arc.getNext();
+	if (rArc) {
+		return this.leftBreakPoint(rArc,sweep);
 		}
-	var site = this.arcs[iarc].site;
-	return site.y == sweep ? site.x : Infinity;
-	};
-
-// find the index where a new site should be inserted.
-// the index will be immediately following the left beach section.
-// special case 1: the new site's parabola might not touch any beach section:
-// this happens *only* when all the beach sections of the current beachline
-// are on the directrix.
-// In such case, the insertion point is always at the end of the list,
-// since sites are processed with increasing y, then increasing x (IMPORTANT!)
-// special case 2: the new site falls exactly in between two beach sections, in
-// such case, the insertion point is as expected, before the right-hand beach
-// section
-Voronoi.prototype.findInsertionPoint = function(x, sweep) {
-	var n = this.arcs.length;
-	if (!n) { return 0; }
-	var l = 0;
-	var r = n;
-	var i;
-	while (l<r) {
-		i = (l+r)>>1;
-		if (this.lessThanWithEpsilon(x,this.leftBreakPoint(i,sweep))) {
-			r = i;
-			continue;
-			}
-		// check if x after right break point
-		if (this.greaterThanOrEqualWithEpsilon(x,this.rightBreakPoint(i,sweep))) {
-			l = i+1;
-			continue;
-			}
-		return i;
-		}
-	return l;
-	};
-
-// INFO: Chromium profiling shows this to be a hot spot
-Voronoi.prototype.findDeletionPoint = function(x, sweep) {
-	var n = this.arcs.length;
-	if (!n) { return 0; }
-	var l = 0;
-	var r = n;
-	var i;
-	var xcut;
-	while (l<r) {
-		i = (l+r)>>1;
-		xcut = this.leftBreakPoint(i,sweep);
-		if (this.lessThanWithEpsilon(x,xcut)) {
-			r = i;
-			continue;
-			}
-		if (this.greaterThanWithEpsilon(x,xcut)) {
-			l = i+1;
-			continue;
-			}
-		xcut = this.rightBreakPoint(i,sweep);
-		if (this.greaterThanWithEpsilon(x,xcut)) {
-			l = i+1;
-			continue;
-			}
-		if (this.lessThanWithEpsilon(x,xcut)) {
-			r = i;
-			continue;
-			}
-		return i;
-		}
+	var site = arc.site;
+	return site.y === sweep ? site.x : Infinity;
 	};
 
 // this create and add an edge to internal collection, and also create
@@ -380,8 +708,8 @@ Voronoi.prototype.createEdge = function(lSite,rSite,va,vb) {
 	if (vb !== undefined) {
 		this.setEdgeEndpoint(edge,lSite,rSite,vb);
 		}
-	this.cells[lSite.id].halfedges.push(new this.Halfedge(lSite,edge));
-	this.cells[rSite.id].halfedges.push(new this.Halfedge(rSite,edge));
+	this.cells[lSite.voronoiId].halfedges.push(new this.Halfedge(lSite,edge));
+	this.cells[rSite.voronoiId].halfedges.push(new this.Halfedge(rSite,edge));
 	return edge;
 	};
 
@@ -403,7 +731,7 @@ Voronoi.prototype.setEdgeStartpoint = function(edge, lSite, rSite, vertex) {
 		edge.lSite = lSite;
 		edge.rSite = rSite;
 		}
-	else if (edge.lSite.id == rSite.id) {
+	else if (edge.lSite === rSite) {
 		edge.vb = vertex;
 		}
 	else {
@@ -418,108 +746,192 @@ Voronoi.prototype.setEdgeEndpoint = function(edge, lSite, rSite, vertex) {
 Voronoi.prototype.removeArc = function(event) {
 	var x = event.center.x;
 	var y = event.center.y;
-	var sweep = event.y;
-	var deletionPoint = this.findDeletionPoint(x, sweep);
+	var directrix = event.y;
+	var disappearingTransitions = [event.arc];
 	// there could be more than one empty arc at the deletion point, this
 	// happens when more than two edges are linked by the same vertex,
 	// so we will collect all those edges by looking up both sides of
-	// the deletion point
+	// the deletion point.
+	// by the way, there is *always* a predecessor/successor to any collapsed
+	// beach section, it's just impossible to have a collapsing first/last
+	// beach sections on the beachline, since they obviously are unconstrained
+	// on their left/right side.
 	// look left
-	var iLeft = deletionPoint;
-	while (iLeft-1 > 0 && this.arcs[iLeft-1].circleEvent && this.verticesAreEqual(event.center,this.arcs[iLeft-1].circleEvent.center) ) {
-		iLeft--;
+	var lArc = event.arc.getPrevious();
+	while (this.equalWithEpsilon(x,this.leftBreakPoint(lArc,directrix)) ) {
+		disappearingTransitions.unshift(lArc);
+		this.voidCircleEvent(lArc);
+		lArc = lArc.getPrevious();
 		}
+	// even though it is not disappearing, I will also add the beach section
+	// immediately to the left of the left-most collapsed beach section, for
+	// convenience, since we need to refer to it later as this beach section
+	// is the 'left' site of an edge for which a start point is set.
+	disappearingTransitions.unshift(lArc);
+	this.voidCircleEvent(lArc);
 	// look right
-	var iRight = deletionPoint;
-	while (iRight+1 < this.arcs.length && this.arcs[iRight+1].circleEvent && this.verticesAreEqual(event.center,this.arcs[iRight+1].circleEvent.center) ) {
-		iRight++;
+	var rArc = event.arc.getNext();
+	while (this.equalWithEpsilon(x,this.rightBreakPoint(rArc,directrix))) {
+		disappearingTransitions.push(rArc);
+		this.voidCircleEvent(rArc);
+		rArc = rArc.getNext();
 		}
-
-	// walk through all the collapsed beach sections and set the start point
-	// of their left edge
-	var lArc, rArc;
-	for (var iArc=iLeft; iArc<=iRight+1; iArc++) {
-		lArc = this.arcs[iArc-1];
-		rArc = this.arcs[iArc];
+	// we also have to add the beach section immediately to the right of the
+	// right-most collapsed beach section, since there is also a disappearing
+	// transition representing an edge's start point on its left.
+	disappearingTransitions.push(rArc);
+	this.voidCircleEvent(rArc);
+	// walk through all the disappearing transitions between beach sections and
+	// set the start point of their (implied) edge.
+	var nArcs = disappearingTransitions.length;
+	var iArc;
+	for (iArc=1; iArc<nArcs; iArc++) {
+		rArc = disappearingTransitions[iArc];
+		lArc = disappearingTransitions[iArc-1];
 		this.setEdgeStartpoint(rArc.edge,lArc.site,rArc.site,new this.Vertex(x,y));
 		}
 
-	// void circle events of collapsed beach sections and adjacent beach sections
-	this.voidCircleEvents(iLeft-1,iRight+1);
+	// removed collapsed beach sections from beachline.
+	// *don't forget*, the first and last beach section in our local array
+	// are *not* collapsing, so we won't remove these.
+	for (iArc=1; iArc<nArcs-1; iArc++) {
+		this.beachline.remove(disappearingTransitions[iArc]);
+		}
 
-	// removed collapsed beach sections from beachline
-	this.arcs.splice(iLeft,iRight-iLeft+1);
-
-	// create new edge as we have a new transition between
-	// two beach sections which were previously not adjacent
-	lArc = this.arcs[iLeft-1];
-	rArc = this.arcs[iLeft];
-
+	// create a new edge as we have now a new transition between
+	// two beach sections which were previously not adjacent.
+	// since this edge appears as a new vertex is defined, the vertex
+	// actually define an end point of the edge (relative to the site
+	// on the left)
+	lArc = disappearingTransitions[0];
+	rArc = disappearingTransitions[nArcs-1];
 	rArc.edge = this.createEdge(lArc.site,rArc.site,undefined,new this.Vertex(x,y));
 
 	// create circle events if any for beach sections left in the beachline
 	// adjacent to collapsed sections
-	this.addCircleEvents(iLeft-1,sweep);
-	this.addCircleEvents(iLeft,sweep);
+	this.addCircleEvent(lArc,directrix);
+	this.addCircleEvent(rArc,directrix);
 	};
 
 Voronoi.prototype.addArc = function(site) {
-	// find insertion point of new beach section on the beachline
-	var newArc = new this.Beachsection(site);
-	var insertionPoint = this.findInsertionPoint(site.x,site.y);
+	var x = site.x;
+	var directrix = site.y;
 
-	// case: insert as last beach section, this case can happen only
-	// when *all* previously processed sites have exactly the same
-	// y coordinate.
-	// this case can't result in collapsing beach sections, thus
-	// no circle events need to be generated.
-	if (insertionPoint == this.arcs.length) {
+	// create a new beach section object for the site
+	var newArc = new this.beachline.Beachsection(site);
 
-		// add new beach section
-		this.arcs.push(newArc);
+	// find the left and right beach sections which will surround the newly
+	// created beach section.
+	var lArc, rArc;
+	var xl, xr;
+	var node = this.beachline.root;
+	while (node) {
+		xl = this.leftBreakPoint(node,directrix);
+		if (this.lessThanWithEpsilon(x,xl)) {
+			node = node.left;
+			}
+		else {
+			xr = this.rightBreakPoint(node,directrix);
+			if (this.greaterThanWithEpsilon(x,xr)) {
+				node = node.right;
+				}
+			else {
+				if (this.equalWithEpsilon(x,xl)) {
+					lArc = node.getPrevious();
+					rArc = node;
+					}
+				else if (this.equalWithEpsilon(x,xr)) {
+					lArc = node;
+					rArc = node.getNext();
+					}
+				else {
+					lArc = rArc = node;
+					}
+				break;
+				}
+			}
+		}
+	// at this point, keep in mind that lArc and/or rArc could be
+	// undefined or null.
 
-		// case: first beach section ever means no transitions, means
-		// no edge is created
-		if (insertionPoint === 0) {return;}
+	// add new beach section as successor of matching node
+	this.beachline.insertSuccessor(lArc, newArc);
 
-		// case: a new transition between two beach sections is
-		// created, create an edge for these two beach sections
-		newArc.edge = this.createEdge(this.arcs[insertionPoint-1].site,newArc.site);
+	// cases:
+	//
 
+	// [null,null]
+	// least likely case: new beach section is the first beach section on the
+	// beachline.
+	// This case means:
+	//   no new transition appears
+	//   no collapsing beach section
+	//   new beach section become root of the RB-tree
+	if (!lArc && !rArc) {return;}
+
+	// [lArc,rArc] where lArc == rArc
+	// most likely case: new beach section split an existing beach
+	// section.
+	// This case means: one new transition appears
+	// the left and right beach section might be collapsing as a result
+	// two new nodes added to the RB-tree
+	if (lArc === rArc) {
+		// invalidate circle event of split beach section
+		this.voidCircleEvent(lArc);
+
+		// split the beach section into two separate beach section
+		rArc = new this.beachline.Beachsection(lArc.site);
+		this.beachline.insertSuccessor(newArc, rArc);
+
+		// since we have a new transition between two beach sections,
+		// a new edge is born
+		newArc.edge = rArc.edge = this.createEdge(lArc.site,newArc.site);
+
+		// check whether the left and right beach sections are collapsing
+		// and if so create circle events, to handle the point of collapse.
+		this.addCircleEvent(lArc,site.y);
+		this.addCircleEvent(rArc,site.y);
 		return;
 		}
 
-	var lArc, rArc;
+	// [lArc,null]
+	// even less likely case: new beach section is the *last* beach section
+	// on the beachline. this can happen *only* if *all* the previous beach
+	// sections currently on the beachline share the same site.y value as
+	// the new beach section.
+	// This case means:
+	//   one new transition appears
+	//   no collapsing beach section as a result
+	//   new beach section become right-most node of the RB-tree
+	if (lArc && !rArc) {
+		newArc.edge = this.createEdge(lArc.site,newArc.site);
+		return;
+		}
 
-	// case: new beach section to insert falls exactly
-	// in between two existing beach sections:
-	// the net result is that the transition between two existing beach
-	// sections is destroyed -- aka a new end point for one edge is
-	// defined, and two new transitions are created -- aka two new edges
-	// are defined.
-	if (insertionPoint > 0 &&
-	    this.equalWithEpsilon(site.x,this.rightBreakPoint(insertionPoint-1,site.y)) &&
-	    this.equalWithEpsilon(site.x,this.leftBreakPoint(insertionPoint,site.y))) {
+	// [null,rArc]
+	// impossible case: because sites are strictly processed from top to bottom,
+	// and left to right, which guarantees that there will always be a beach section
+	// on the left -- except of course when there are no beach section at all on
+	// the beach line, which case was handled above.
+	if (!lArc && rArc) {
+		throw 'Voronoi.addArc(): WTF!?';
+		}
 
-		// before adding dddd:
-		//   arcs: aaaaaaaa bbbbbbbb cccccccc
-		//  edges:          ab       bc
-		//                  ^
-		// after adding dddd:
-		//   arcs: aaaaaaaa dddd bbbbbbbb cccccccc
-		//  edges:          ad   bd       bc
-		//                  ^
-		// transition ab disappears, meaning a new vertex is defined,
-		// while transition ad and bd appear, meaning two new edges are
-		// defined
-		lArc = this.arcs[insertionPoint-1];
-		rArc = this.arcs[insertionPoint];
-
+	// [lArc,rArc] where lArc != rArc
+	// less likely case: new beach section falls *exactly* in between two
+	// existing beach sections
+	// This case means:
+	//   one transition disappears
+	//   two new transitions appear
+	//   the left and right beach section might be collapsing as a result
+	//   only one new node added to the RB-tree
+	if (lArc !== rArc) {
 		// invalidate circle events of left and right sites
-		this.voidCircleEvents(insertionPoint-1,insertionPoint);
+		this.voidCircleEvent(lArc);
+		this.voidCircleEvent(rArc);
 
-		// an existing transition disappears, meaning a vertex is defined at the
-		// disappearance point
+		// an existing transition disappears, meaning a vertex is defined at
+		// the disappearance point
 		var circle = this.circumcircle(lArc.site,site,rArc.site);
 		this.setEdgeStartpoint(rArc.edge, lArc.site, rArc.site, new this.Vertex(circle.x,circle.y));
 
@@ -527,53 +939,12 @@ Voronoi.prototype.addArc = function(site) {
 		newArc.edge = this.createEdge(lArc.site,newArc.site,undefined,new this.Vertex(circle.x,circle.y));
 		rArc.edge = this.createEdge(newArc.site,rArc.site,undefined,new this.Vertex(circle.x,circle.y));
 
-		// insert new beach section
-		this.arcs.splice(insertionPoint,0,newArc);
-
 		// check whether the left and right beach sections are collapsing
 		// and if so create circle events, to handle the point of collapse.
-		this.addCircleEvents(insertionPoint-1,site.y);
-		this.addCircleEvents(insertionPoint+1,site.y);
-
+		this.addCircleEvent(lArc,site.y);
+		this.addCircleEvent(rArc,site.y);
 		return;
 		}
-
-	// case: this is the most-likely case, where an existing beach section
-	// is split by the new beach section to insert.
-	// adding a new beach section in the middle of an existing one causes two new 
-	// transitions to appear -- but since both transitions involve the same two
-	// sites, only one single edge is created, and assigned to two beach front
-	// transitions (the 'edge' member of the beach section.)
-
-	// invalidate circle event possibly associated with the beach section
-	// to split
-	this.voidCircleEvents(insertionPoint);
-
-	// before:
-	//   arcs: aaaaaaaa bbbbbbbb cccccccc
-	//  edges:          ab       bc
-	// after:
-	//   arcs: aaaaaaaa bbbb dddd bbbb cccccccc
-	//  edges:          ab   bd   db   bc
-	//                        ^   ^
-	// bd & db are actually the same edge, the orientation has just
-	// not been decided yet
-
-	// insert new beach section into beachline
-	lArc = this.arcs[insertionPoint];
-	rArc = new this.Beachsection(lArc.site);
-
-	// insert new beach section into beachline
-	this.arcs.splice(insertionPoint+1,0,newArc,rArc);
-
-	// since we have a new transition between two beach sections,
-	// a new edge is born
-	newArc.edge = rArc.edge = this.createEdge(lArc.site,newArc.site);
-
-	// check whether the left and right beach sections are collapsing
-	// and if so create circle events, to handle the point of collapse.
-	this.addCircleEvents(insertionPoint,site.y);
-	this.addCircleEvents(insertionPoint+2,site.y);
 	};
 
 Voronoi.prototype.circumcircle = function(a,b,c) {
@@ -591,15 +962,16 @@ Voronoi.prototype.circumcircle = function(a,b,c) {
 	return {x:x+ax,y:y+ay,radius:this.sqrt(x*x+y*y)};
 	};
 
-Voronoi.prototype.addCircleEvents = function(iArc,sweep) {
-	if (iArc <= 0 || iArc >= this.arcs.length-1) {return;}
-	var arc=this.arcs[iArc];
-	var lSite=this.arcs[iArc-1].site;
-	var cSite=this.arcs[iArc].site;
-	var rSite=this.arcs[iArc+1].site;
+Voronoi.prototype.addCircleEvent = function(arc,sweep) {
+	var lArc=arc.getPrevious();
+	var rArc=arc.getNext();
+	if (!lArc || !rArc) {return;}
+	var lSite=lArc.site;
+	var cSite=arc.site;
+	var rSite=rArc.site;
 	// if any two sites are repeated in the same beach section triplet,
 	// there can't be convergence
-	if (lSite.id==rSite.id || lSite.id==cSite.id || cSite.id==rSite.id) {return;}
+	if (lSite===rSite || lSite===cSite || cSite===rSite) {return;}
 	// if points l->c->r are clockwise, then center beach section does not
 	// converge, hence it can't end up as a vertex
 	if ((lSite.y-cSite.y)*(rSite.x-cSite.x)<=(lSite.x-cSite.x)*(rSite.y-cSite.y)) {return;}
@@ -610,31 +982,26 @@ Voronoi.prototype.addCircleEvents = function(iArc,sweep) {
 	// TODO: And what if it is on the sweep line, should it be discarded if it is
 	// *before* the last processed x value? Need to think about this.
 	var ybottom=circle.y+circle.radius;
-	if (!this.greaterThanOrEqualWithEpsilon(ybottom,sweep)) {return;}
-	var circEvent={
+	//if (this.lessThanWithEpsilon(ybottom,sweep)) {
+	//	return;
+	//	}
+	arc.circleEvent={
 		type: this.CIRCLE_EVENT,
+		arc: arc,
 		site: cSite,
 		x: circle.x,
 		y: ybottom,
 		center: {x:circle.x, y:circle.y}
 		};
-	arc.circleEvent = circEvent;
-	this.queuePushCircle(circEvent);
+	this.queuePushCircle(arc.circleEvent);
 	};
 
-Voronoi.prototype.voidCircleEvents = function(iLeft,iRight) {
-	if ( iRight === undefined ) {iRight = iLeft;}
-	iLeft = this.max(iLeft,0);
-	iRight = this.min(iRight,this.arcs.length-1);
-	while (iLeft <= iRight) {
-		var arc = this.arcs[iLeft];
-		if ( arc.circleEvent !== undefined ) {
-			arc.circleEvent.type = this.VOID_EVENT;
-			// after profiling in Chromium, found out assigning 'undefined' is much more efficient than
-			// using 'delete' on the property, possibly because 'delete' causes a 're-classify' to trigger
-			arc.circleEvent = undefined;
-			}
-		iLeft++;
+Voronoi.prototype.voidCircleEvent = function(arc) {
+	if (arc.circleEvent) {
+		arc.circleEvent.type = this.VOID_EVENT;
+		// after profiling in Chromium, found out assigning 'undefined' is more efficient than
+		// using 'delete' on the property (possibly because 'delete' triggers a 're-classification'?)
+		arc.circleEvent = undefined;
 		}
 	};
 
@@ -664,7 +1031,7 @@ Voronoi.prototype.queueSanitize = function() {
 		q.splice(iLeft,nEvents);
 		}
 	// remove all void events if queue grew too large
-	var nArcs = this.arcs.length;
+	var nArcs = this.beachline.numBeachsections;
 	if (q.length < nArcs*2) {return;}
 	while (true) {
 		iRight = iLeft-1;
@@ -701,7 +1068,7 @@ Voronoi.prototype.queuePop = function() {
 		return null;
 		}
 	// both queues have valid events, return 'earliest'
-	if (siteEvent.y < circEvent.y || (siteEvent.y == circEvent.y && siteEvent.x < circEvent.x)) {
+	if (siteEvent.y < circEvent.y || (siteEvent.y === circEvent.y && siteEvent.x < circEvent.x)) {
 		return this.queuePopSite();
 		}
 	return this.circEvents.pop();
@@ -733,7 +1100,7 @@ Voronoi.prototype.queuePushCircle = function(o) {
 
 Voronoi.prototype.getBisector = function(va,vb) {
 	var r = {x:(va.x+vb.x)/2,y:(va.y+vb.y)/2};
-	if (vb.y==va.y) {return r;}
+	if (vb.y===va.y) {return r;}
 	r.m = (va.x-vb.x)/(vb.y-va.y);
 	r.b = r.y-r.m*r.x;
 	return r;
@@ -853,7 +1220,8 @@ Voronoi.prototype.connectEdge = function(edge,bbox) {
 	};
 
 // line-clipping code taken from:
-//   Liang-Barsky function by Daniel White @ http://www.skytopia.com/project/articles/compsci/clipping.html
+//   Liang-Barsky function by Daniel White
+//   http://www.skytopia.com/project/articles/compsci/clipping.html
 // Thanks!
 // A bit modified to minimize code paths
 Voronoi.prototype.clipEdge = function(edge,bbox) {
@@ -921,16 +1289,15 @@ Voronoi.prototype.clipEdge = function(edge,bbox) {
 	return true;
 	};
 
-// coming soon, last part for the Voronoi diagram
-// to be complete et usable.
+// Cut edges at bounding box
 Voronoi.prototype.clipEdges = function(bbox) {
 	// connect all dangling edges to bounding box
 	// or get rid of them if it can't be done
-	var edges = this.edges;
-	var nEdges = edges.length;
-	var edge;
+	var edges = this.edges,
+		nEdges = edges.length,
+		iEdge, edge;
 	// iterate backward so we can splice safely and efficiently
-	for (var iEdge=nEdges-1; iEdge>=0; iEdge-=1) {
+	for (iEdge=nEdges-1; iEdge>=0; iEdge--) {
 		edge = edges[iEdge];
 		if (!this.connectEdge(edge,bbox) || !this.clipEdge(edge,bbox) || this.verticesAreEqual(edge.va,edge.vb)) {
 			this.destroyEdge(edge);
@@ -964,14 +1331,14 @@ Voronoi.prototype.closeCells = function(bbox) {
 	// clip edges to bounding box
 	this.clipEdges(bbox);
 	// prune and order halfedges
-	var cells = this.cells;
-	var cell;
-	var iLeft, iRight;
-	var halfedges, nHalfedges;
-	var edge;
-	var startpoint, endpoint;
-	var va, vb;
-	for (var cellid in cells) {
+	var cells = this.cells,
+		cellid, cell,
+		iLeft, iRight,
+		halfedges, nHalfedges,
+		edge,
+		startpoint, endpoint,
+		va, vb;
+	for (cellid in cells) {
 		cell = cells[cellid];
 		if (!(cell instanceof this.Cell)) {continue;}
 		halfedges = cell.halfedges;
@@ -1045,89 +1412,79 @@ Voronoi.prototype.closeCells = function(bbox) {
 		}
 	};
 
-Voronoi.prototype.addSites = function(vertices) {
-	var nVertices = vertices.length;
-	var v;
-	for (var iVertex=0; iVertex<nVertices; iVertex++) {
-		v = vertices[iVertex];
-		this.sites.push(new this.Site(v.x,v.y));
-		}
-	};
-
-Voronoi.prototype.setSites = function(vertices) {
-	this.sites = [];
-	this.addSites(vertices);
-	};
-
-Voronoi.prototype.getSites = function() {
-	return this.sites;
-	};
-
-Voronoi.prototype.compute = function(bbox) {
+// rhill 2011-05-19:
+//   Voronoi sites are kept client-side now, to allow
+//   user to freely modify content. At compute time,
+//   site references are copied locally.
+Voronoi.prototype.compute = function(sites, bbox) {
 	// to measure execution time
 	var startTime = new Date();
 
-	// init events queue
-	this.siteEvents = [];
-	this.circEvents = [];
+	// reset id generator
+	this.siteidGenerator = 1;
 
-	// rhill 2011-05017:
-	//   Sort Voronoi sites first, for performance purpose. This
-	//   way we no longer need Voronoi.queuePushSite()
-	var sites = this.sites.slice(0);
-	sites.sort(function(a,b){
-		var r = a.y - b.y;
+	// Copy/sort Voronoi sites first, for performance purpose.
+	// This way we no longer need Voronoi.queuePushSite()
+	var q = sites.slice(0);
+	q.sort(function(a,b){
+		var r = b.y - a.y;
 		if (r) {return r;}
-		return a.x - b.x;
+		return b.x - a.x;
 		});
 
-	// populate site events queue
-	var nSites = sites.length,
+	// prime sites in site event queue with a unique
+	// Voronoi id and remove duplicate sites
+	var nSites = q.length,
 		iSite = nSites,
-		q = this.siteEvents,
 		site, previous;
 	while (--iSite >= 0) {
-		site = sites[iSite];
-		// prune voided sites
-		if (!site.id) {
-			sites.splice(iSite,1);
-			continue;
+		site = q[iSite];
+		// remove duplicate sites
+		if (previous && site.y === previous.y && site.x === previous.x) {
+			q.splice(iSite, 1);
+			site.voronoiId = 0;
 			}
-		// avoid duplicate sites
-		if (previous && site.y == previous.y && site.x == previous.x) {
-			continue;
+		else {
+			site.voronoiId = this.siteidGenerator++;
+			previous = site;
 			}
-		q.push(site);
-		previous = site;
 		}
 
+	// init events queue
+	this.siteEvents = q;
+	this.circEvents = [];
+
 	// init internal state
-	this.arcs = [];
+	this.beachline.reset();
 	this.edges = [];
 	this.cells = new this.Cells();
 
 	// process event queue
-	var event = this.queuePop();
-	while (event) {
+	var event;
+	for (;;) {
+		// next event
+		event = this.queuePop();
+		if (!event) {break;}
+
 		// add beach section
 		if (event.type === this.SITE_EVENT) {
 			this.cells.addCell(new this.Cell(event.site));
 			this.addArc(event.site);
+			//this.beachline.dump(event.y);
 			}
 		// remove beach section
 		else if (event.type === this.CIRCLE_EVENT) {
 			this.removeArc(event);
+			//this.beachline.dump(event.y);
 			}
 		// void event, sanitize queue
 		else {
 			this.queueSanitize();
 			}
-		// next event
-		event = this.queuePop();
 		}
 
-	// wrap-up: discard edges completely outside bounding box
-	// and close all open cells
+	// wrap-up: discard edges completely outside bounding box,
+	// truncate edges crossing bounding box, then close all open cells
 	this.closeCells(bbox);
 
 	// to measure execution time
@@ -1135,16 +1492,15 @@ Voronoi.prototype.compute = function(bbox) {
 
 	// prepare return values
 	var result = {
-		sites: this.sites,
 		cells: this.cells,
 		edges: this.edges,
 		execTime: stopTime.getTime()-startTime.getTime()
 		};
 
-	// clean up, no need to keep these around
-	this.arcs = [];
-	this.edges = [];
-	this.cells = new this.Cells();
+	// clean up
+	this.beachline.reset();
+	this.edges = null;
+	this.cells = null;
 
 	return result;
 	};
