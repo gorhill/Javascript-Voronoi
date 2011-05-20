@@ -5,10 +5,12 @@ Files
 -----
 
 rhill-voronoi-core.js
-  Where the Voronoi object is implemented.
+  Where the Voronoi object is implemented. This is a standalone library,
+  there is no dependency.
 
 rhill-voronoi-demo1.php
 rhill-voronoi-demo2.php
+rhill-voronoi-demo3.php
   Demo pages to demonstrate usage of the Voronoi object.
 
 rhill-voronoi.php
@@ -18,9 +20,13 @@ rhill-voronoi.js
   script of rhill-voronoi.php. 
 
 excanvas/*
+  Used by demo pages
   ExplorerCanvas, giving pre-HTML5 Internet Explorer the ability
   to make sense of HTML5's canvas element. Pulled from
   http://code.google.com/p/explorercanvas/
+
+mootools/*
+  Used by rhill-voronoi-demo3.php
 
 Above pages available at
   http://www.raymondhill.net/voronoi/
@@ -41,15 +47,15 @@ Roughly:
 
   var voronoi = new Voronoi();
   var bbox = {xl:0,xr:800,yt:0,yb:600};
-  voronoi.setSites([ /* an array of vertices */ ]);
-  var diagram = voronoi.compute(bbox);
+  // a 'vertex' is an object exhibiting 'x' and 'y' properties. The
+  // Voronoi object will add a unique 'voronoiId' property to all
+  // vertices. The 'voronoiId' can be used as a key to lookup the
+  // associated cell in 'diagram.cells'. A 'voronoiId' equals to 0
+  // means there exists no associated Voronoi cell.
+  var diagram = voronoi.compute([ /* an array of vertices */ ], bbox);
 
 The returned 'diagram' variable is a Javascript object with the
 following properties:
-
-  diagram.sites:
-    An array of unordered, unique Voronoi.Site objects underlying the
-    Voronoi diagram.
 
   diagram.edges:
     An array of unordered, unique Voronoi.Edge objects making up the
