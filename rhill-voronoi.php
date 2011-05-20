@@ -37,7 +37,7 @@ _gaq.push(['_trackPageview']);
 <body onload="Voronoi.init();">
 <h1>Javascript implementation of Steven J. Fortune's algorithm to compute Voronoi diagrams</h1>
 <div id="divroot" style="width:800px;">
-<p style="margin-top:0;"><a href="/">&lt; Home page of Raymond Hill</a> | <a href="rhill-voronoi-demo1.php">Demo 1: measuring peformance</a> | <a href="rhill-voronoi-demo2.php">Demo 2: a bit of interactivity</a></p>
+<p style="margin-top:0;"><a href="/">&lt; Home page of Raymond Hill</a> | <a href="rhill-voronoi-demo1.php">Demo 1: measuring peformance</a> | <a href="rhill-voronoi-demo2.php">Demo 2: a bit of interactivity</a> | <a href="rhill-voronoi-demo3.php">Demo 3: Fancy tiling</a></p>
 <h4 class="divhdr">Intro</h4>
 <div class="divinfo" id="voronoiIntro">
 <p>See my <a href="http://www.raymondhill.net/blog/?p=9">blog post</a> regarding this page.</p>
