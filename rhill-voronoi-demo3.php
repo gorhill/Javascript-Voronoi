@@ -1,31 +1,44 @@
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
 <head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-<title>Javascript implementation of Steven Fortune's algorithm to compute Voronoi diagrams: Demo 3</title>
-<meta name="Keywords" lang="en" content="voronoi, fortune, javascript, raymond hill"/>
-<!--[if IE]><script type="text/javascript" src="excanvas/excanvas.compiled.js"></script><![endif]-->
-<script type="text/javascript" src="mootools/mootools-core-1.3.2.js"></script>
-<script type="text/javascript" src="mootools/mootools-more-1.3.2.1.js"></script>
-<script type="text/javascript" src="rhill-voronoi-core.js"></script>
 <style type="text/css">
 body {font-family:tahoma,verdana,arial;font-size:13px;margin:0;padding:0}
 body > div {margin-left:4px;margin-right:4px;}
 body > div > div {margin:0;border:1px solid #ccc;border-top:0;padding:4px;}
+div.pane {margin:0;border:0;padding:0;display:inline-block;vertical-align:top}
 h1 {font:bold 20px sans-serif;margin:0 0 0.5em 0;padding:4px;background-color:#c9d7f1;}
-h4 {font-size:14px;margin:0.5em 0 0 0;border:0;border-bottom:solid 1px #c9d7f1;padding:2px;background-color:#e5ecf9;}
+h4 {font-size:14px;margin:0;border:0;border-bottom:solid 1px #c9d7f1;padding:2px;background-color:#e5ecf9;}
 h4 > span {cursor:pointer}
-#hLegend {display:inline-block;font-size:12px;vertical-align:bottom}
-#hLegend > span {margin-top:2px;padding:0 0 2px 0;display:block;height:14px;text-align:right}
-.tileParms {display:inline-block;font-size:12px;vertical-align:bottom}
-.tileParms > div {margin:0;border:0;padding:0;display:inline-block}
-.tileParms > div > input {margin-top:2px;border:1px solid gray;display:block;width:60px;height:14px}
-.tileParms > div > div {border:1px solid #888;width:60px;height:60px;position:relative}
-.tileParms > div > div > div {border:0;width:10px;height:10px;position:absolute}
+#voronoiGenerators {font-size:12px}
+#voronoiGenerators input,#voronoiGenerators button {font-size:inherit}
+.tileParms {margin-bottom:1em;vertical-align:bottom}
+.tileParms > div {margin:0;border:0;padding:0}
+.tileParms input {margin-top:2px;border:1px solid gray;width:60px;height:14px}
+div.colorValues {margin:2px 0 2px 15px}
+div.colorValues > img {vertical-align:bottom}
+div.hLegend,div.repeatValues,div.offsetValues,div.rotateValues {display:inline-block;vertical-align:bottom}
+div.hLegend {width:12px}
+div.hLegend > span {margin-top:2px;padding:0 0 2px 0;display:block;height:14px;text-align:right}
+div.repeatValues > div,div.offsetValues > div,div.rotateValues > div {border:1px solid #888;height:60px;position:relative;color:#aaa;text-align:center;line-height:60px}
+div.repeatValues > div,div.offsetValues > div {width:60px}
+div.rotateValues > div {width:25px}
+div.repeatValues > div > div,div.offsetValues > div > div,div.rotateValues > div > div {border:0;position:absolute;left:0;top:0}
+div.repeatValues > div > div,div.offsetValues > div > div {width:10px;height:10px}
+div.rotateValues > div > div {width:25px;height:5px}
+div.rotateValues > input {width:25px;}
 #canvasParent {margin-top:0;margin-bottom:1em;padding:0;border:0}
 #voronoiCode {font:11px monospace;overflow:auto;color:gray;}
 #voronoiCode span {color:green;font-weight:bold;}
 </style>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<title>Javascript implementation of Steven Fortune's algorithm to compute Voronoi diagrams: Demo 3</title>
+<meta name="Keywords" lang="en" content="voronoi, fortune, javascript, raymond hill"/>
+<script type="text/javascript" src="mootools/mootools-core-1.3.2.js"></script>
+<script type="text/javascript" src="mootools/mootools-more-1.3.2.1.js"></script>
+<!--[if lte IE8]>
+	<script type="text/javascript" src="excanvas/excanvas.compiled.js"></script>
+	<![endif]-->
+<script type="text/javascript" src="rhill-voronoi-core.js"></script>
 <script type="text/javascript">
 <!--
 var _gaq = _gaq || [];
@@ -41,8 +54,35 @@ _gaq.push(['_trackPageview']);
 	})();
 // -->
 </script>
+<?php
+if ( isset($_REQUEST['generators']) && preg_match('/^([0-9a-fA-F]+(-|$))+$/', $_REQUEST['generators']) ) {
+	$match = explode('-', $_REQUEST['generators']);
+	if ( (count($match) % 3) == 0 ) {
+		$tiles = array();
+		$valuesPerTiles = count($match) / 3;
+		if ( $valuesPerTiles >= 6 && $valuesPerTiles <= 8 ) {
+			for ( $iTile = 0; $iTile < 3; $iTile++ ) {
+				$index = $iTile * $valuesPerTiles;
+				$xstep = min(max(hexdec($match[$index++]),0),50);
+				$ystep = min(max(hexdec($match[$index++]),0),50);
+				$xoffset = min(max(hexdec($match[$index++]) / 1000 - 0.5,-0.5),0.5);
+				$yoffset = min(max(hexdec($match[$index++]) / 1000 - 0.5,-0.5),0.5);
+				$angle = $valuesPerTiles != 7 ? min(max(hexdec($match[$index++])/1000,0),1) : 0;
+				$tile = "repeatx:{$xstep}, repeaty:{$ystep}, offsetx:{$xoffset}, offsety:{$yoffset}, rotate:{$angle}";
+				if ( preg_match('/^[0-9a-fA-F]{6}$/', $match[$index]) ) {
+					$tile .= ", color:'#{$match[$index]}'";
+					}
+				$tiles[] = "{{$tile}}";
+				}
+			$preset = '[' . implode(',', $tiles) . ']'; 
+			}
+		}
+	}
+?>
 <script type="text/javascript">
 <!--
+// Copyright 2011 Raymond Hill
+// MIT license
 var VoronoiDemo = {
 
 	voronoi: new Voronoi(),
@@ -50,160 +90,344 @@ var VoronoiDemo = {
 	diagram: null,
 	canvas: null,
 	generators: [],
-	grout: true,
+	backgroundGenerator: null,
+	dragging: false,
+	hasRotation: false,
+	showGrout: true,
+	showSites: false,
 	controls: [],
 	presets: [
-		[[10,10,0,0],[5,5,0.5,0.5],[5,5,0,0]],
-		[[7,12,0,0],[7,12,0.5,0.5],[0,0,0,0]],
-		[[10,10,-0.5,-0.5],[5,5,0.5,0.5],[5,5,0,0]],
-		[[10,10,0,0],[10,10,0.5,0.5],[0,0,0,0]],
-		[[7,7,0,0],[10,10,0,0],[0,0,0,0]],
-		[[10,10,0,0],[10,10,0.5,0.5],[12,9,0,0]],
-		[[9,12,0,0],[8,11,0.5,0.5],[7,7,0,0]]
+		[
+			{repeatx:10, repeaty:10},
+			{repeatx:5, repeaty:5, offsetx:0.5, offsety:0.5},
+			{repeatx:5, repeaty:5}
+			],
+		[
+			{repeatx:7, repeaty:12},
+			{repeatx:7, repeaty:12, offsetx:0.5,  offsety:0.5}
+			],
+		[
+			{repeatx:10, repeaty:10, offsetx:-0.5, offsety:-0.5},
+			{repeatx:5, repeaty:5, offsetx:0.5, offsety:0.5},
+			{repeatx:5, repeaty:5}
+			],
+		[
+			{repeatx:10, repeaty:10},
+			{repeatx:10, repeaty:10, offsetx:0.5, offsety:0.5}
+			],
+		[
+			{repeatx:9, repeaty:11, color:'#ffccaa'},
+			{repeatx:10, repeaty:10, color: '#ccaa88'}
+			],
+		[
+			{repeatx:24, repeaty:24, rotate:0.25, color:'#ffccaa'},
+			{repeatx:24, repeaty:24, color: '#ccaa88'}
+			],
+		[
+			{repeatx:9, repeaty:12},
+			{repeatx:8, repeaty:11, offsetx:0.5, offsety:0.5},
+			{repeatx:7, repeaty:7}
+			],
+		[
+			{repeatx:1, repeaty:20},
+			{repeatx:2, repeaty:2, offsetx:0.5, offsety:0.5},
+			{repeatx:2, repeaty:2}
+			],
+		[
+			{repeatx:10, repeaty:5, offsety:0.5},
+			{repeatx:5, repeaty:5, offsetx:0.5, offsety:0.5},
+			{repeatx:5, repeaty:5}
+			],
+		[
+			{repeatx:20, repeaty:20},
+			{repeatx:21, repeaty:21},
+			{repeatx:22, repeaty:22}
+			]
 		],
+	<?php if ( isset($preset) ) { echo "urlpreset: {$preset},\n"; } ?>
 
 	init: function() {
 		var demo = this;
 
+		this.canvasWidth = this.canvasHeight = 640;
 		this.canvas = $('voronoiCanvas');
-		this.generators.push(this.createGenerator({r:1,g:0.5,b:0.5}));
-		this.generators.push(this.createGenerator({r:0.5,g:1,b:0.5}));
-		this.generators.push(this.createGenerator({r:0.5,g:0.5,b:1}));
+		this.canvas.width = this.canvas.height = this.canvasWidth;
+/*
+		this.canvasPattern = $('canvasPattern');
+		this.canvasPattern.width = this.canvasPattern.height = this.canvasWidth / 4;
+		this.canvasPreview = $('canvasTilingPreview');
+		this.canvasPreview.width = this.canvasPreview.height = this.canvasWidth;
+*/
+		this.generators.push(this.createGenerator([255,128,128]));
+		this.generators.push(this.createGenerator([128,255,128]));
+		this.generators.push(this.createGenerator([128,128,255]));
 		// GUI stuff
-		var handleStepChange = function(el,iGenerator,iValue) {
+		var handleColorChange = function(iGenerator, newColor) {
 				var generator = demo.generators[iGenerator];
-				var value = parseInt(el.value);
-				if (isNaN(value)) {value=0;}
-				generator.values[iValue] = Math.min(Math.max(value,0),50);
+				if (/^#?([0-9a-fA-F]|([0-9a-fA-F]{2})){3}$/.test(newColor)) {
+					if (!/^#/.test(newColor)) {
+						newColor = '#' + newColor;
+						}
+					generator.color = newColor.hexToRgb(true);
+					}
 				generator.render();
+				demo.renderVoronoi();
 				demo.renderCanvas();
 				demo.syncFields(iGenerator);
+				demo.updatePermalink();
 				};
-		var handleOffsetChange = function(el,iGenerator,iValue) {
-				var generator = demo.generators[iGenerator];
-				var value = parseInt(el.value);
+		var handleValueChange = function(iGenerator,member,value) {
 				if (isNaN(value)) {value=0;}
-				generator.values[iValue] = Math.min(Math.max(value/100,-0.5),0.5);
+				var generator = demo.generators[iGenerator];
+				generator[member] = value;
 				generator.render();
+				demo.renderVoronoi();
 				demo.renderCanvas();
 				demo.syncFields(iGenerator);
+				demo.updatePermalink();
+				};
+		var handleStepChange = function(el,iGenerator,member) {
+				handleValueChange(iGenerator,member,Math.min(Math.max(parseInt(el.value,10),0),50));
+				};
+		var handleOffsetChange = function(el,iGenerator,member) {
+				handleValueChange(iGenerator,member,Math.min(Math.max(parseFloat(el.value),-0.5),0.5));
+				};
+		var handleAngleChange = function(el,iGenerator,member) {
+				handleValueChange(iGenerator,member,Math.min(Math.max(parseFloat(el.value),0),1));
 				};
 		var handleStepDragger = function(el,iGenerator) {
 			var coords = el.getCoordinates(el.getOffsetParent()),
 				generator = demo.generators[iGenerator],
-				values = generator.values,
-				hadTiles = values[0] && values[1];
-			values[0] = coords.left;
-			values[1] = coords.top;
-			var	hasTiles = values[0] && values[1];
+				hadTiles = generator.repeatx && generator.repeaty;
+			generator.repeatx = coords.left;
+			generator.repeaty = coords.top;
+			var	hasTiles = generator.repeatx && generator.repeaty;
 			generator.render();
 			demo.syncTextFields(iGenerator);
 			if (hadTiles || hasTiles) {
+				demo.renderVoronoi();
 				demo.renderCanvas();
 				}
 			};
 		var handleOffsetDragger = function(el,iGenerator) {
 			var coords = el.getCoordinates(el.getOffsetParent()),
 				generator = demo.generators[iGenerator],
-				values = generator.values,
-				hasTiles = values[0] && values[1];
-			values[2] = coords.left / 50 - 0.5;
-			values[3] = coords.top / 50 - 0.5;
+				hasTiles = generator.repeatx && generator.repeaty;
+			generator.offsetx = coords.left / 50 - 0.5;
+			generator.offsety = coords.top / 50 - 0.5;
 			generator.render();
 			demo.syncTextFields(iGenerator);
 			if (hasTiles) {
+				demo.renderVoronoi();
 				demo.renderCanvas();
 				}
 			};
-		$$('#voronoiGenerator .tileParms').each(function(el,iGenerator){
-			var controls = [
-				el.getElement('div:nth-of-type(1) > input:nth-of-type(1)'),
-				el.getElement('div:nth-of-type(1) > input:nth-of-type(2)'),
-				el.getElement('div:nth-of-type(2) > input:nth-of-type(1)'),
-				el.getElement('div:nth-of-type(2) > input:nth-of-type(2)'),
-				el.getElement('div:nth-of-type(1) > div > div'),
-				el.getElement('div:nth-of-type(2) > div > div')
-				];
+		var handleRotationDragger = function(el,iGenerator) {
+			var coords = el.getCoordinates(el.getOffsetParent()),
+				generator = demo.generators[iGenerator],
+				hasTiles = generator.repeatx && generator.repeaty;
+			generator.rotate = coords.top / 55;
+			generator.render();
+			demo.syncTextFields(iGenerator);
+			if (hasTiles) {
+				demo.renderVoronoi();
+				demo.renderCanvas();
+				}
+			};
+		$$('#voronoiGenerators .tileParms').each(function(el,iGenerator){
+			var controls = {
+				color: el.getElement('.colorValues > input'),
+				repeatx: el.getElement('.repeatValues > input:nth-of-type(1)'),
+				repeaty: el.getElement('.repeatValues > input:nth-of-type(2)'),
+				offsetx: el.getElement('.offsetValues > input:nth-of-type(1)'),
+				offsety: el.getElement('.offsetValues > input:nth-of-type(2)'),
+				angle: el.getElement('.rotateValues > input:nth-of-type(1)'),
+				repeatKnob: el.getElement('.repeatValues > div > div'),
+				offsetKnob: el.getElement('.offsetValues > div > div'),
+				angleKnob: el.getElement('.rotateValues > div > div')
+				};
 			demo.controls[iGenerator] = controls;
-			new Drag(el.getElement('div:nth-of-type(1) > div > div'), {
+			var dummy = new Drag(el.getElement(controls.repeatKnob), {
 					snap: 1,
 					limit:{x:[0,50],y:[0,50]},
-					onDrag: function(el){handleStepDragger(el,iGenerator);}
+					onStart: function(){demo.dragging=true;},
+					onDrag: function(el){
+						handleStepDragger(el,iGenerator);
+						},
+					onComplete: function(){
+						demo.dragging=false;
+						demo.renderCanvas();
+						demo.updatePermalink();
+						}
 					});
-			new Drag(el.getElement('div:nth-of-type(2) > div > div'), {
+			dummy = new Drag(el.getElement(controls.offsetKnob), {
 					snap: 1,
 					limit:{x:[0,50],y:[0,50]},
-					onDrag: function(el){handleOffsetDragger(el,iGenerator);}
+					onStart: function(){demo.dragging=true;},
+					onDrag: function(el){
+						handleOffsetDragger(el,iGenerator);
+						},
+					onComplete: function(){
+						demo.dragging=false;
+						demo.renderCanvas();
+						demo.updatePermalink();
+						}
 					});
-				controls[0].addEvent('change',function(){var el=this;handleStepChange(el,iGenerator,0);});
-				controls[1].addEvent('change',function(){var el=this;handleStepChange(el,iGenerator,1);});
-				controls[2].addEvent('change', function(){var el=this;handleOffsetChange(el,iGenerator,2);});
-				controls[3].addEvent('change', function(){var el=this;handleOffsetChange(el,iGenerator,3);});
+			dummy = new Drag(el.getElement(controls.angleKnob), {
+					snap: 1,
+					limit:{x:[0,0],y:[0,55]},
+					onStart: function(){demo.dragging=true;},
+					onDrag: function(el){
+						handleRotationDragger(el,iGenerator);
+						},
+					onComplete: function(){
+						demo.dragging=false;
+						demo.renderCanvas();
+						demo.updatePermalink();
+						}
+					});
+			controls.color.addEvent('change',function(){var el=this;handleColorChange(iGenerator, el.value);});
+			controls.repeatx.addEvent('change',function(){var el=this;handleStepChange(el,iGenerator,'repeatx');});
+			controls.repeaty.addEvent('change',function(){var el=this;handleStepChange(el,iGenerator,'repeaty');});
+			controls.offsetx.addEvent('change', function(){var el=this;handleOffsetChange(el,iGenerator,'offsetx');});
+			controls.offsety.addEvent('change', function(){var el=this;handleOffsetChange(el,iGenerator,'offsety');});
+			controls.angle.addEvent('change', function(){var el=this;handleAngleChange(el,iGenerator,'rotate');});
+			});
+		// global controls
+		$('showGrout').addEvent('change',function(){
+			demo.showGrout=this.checked;
+			demo.renderCanvas();
+			});
+		$('showSites').addEvent('change',function(){
+			demo.showSites=this.checked;
+			demo.renderCanvas();
 			});
 		// initalize UI as per internal state
-		this.selectPreset(0);
+		this.selectPreset(this.urlpreset || this.presets[0]);
 		this.syncFields();
+		this.renderVoronoi();
 		this.renderCanvas();
+		this.updatePermalink();
+		},
+
+	renderVoronoi: function() {
+		this.compositeGenerators();
+		this.diagram = this.voronoi.compute(this.sites, {xl:0,xr:this.canvas.width,yt:0,yb:this.canvas.height});
 		},
 
 	renderCanvas: function() {
-		this.compositeGenerators();
-		this.diagram = this.voronoi.compute(this.sites, {xl:0,xr:this.canvas.width,yt:0,yb:this.canvas.height});
-		var ctx = this.canvas.getContext('2d');
+		var ctx = this.canvas.getContext('2d'),
+			backgroundGenerator = this.backgroundGenerator;
 		// background
 		ctx.globalAlpha = 1;
 		ctx.beginPath();
 		ctx.rect(0,0,this.canvas.width,this.canvas.height);
-		ctx.fillStyle = '#fff';
+		ctx.fillStyle = this.hasRotation || !backgroundGenerator ? '#fff' : backgroundGenerator.color.rgbToHex();
 		ctx.fill();
-		ctx.strokeStyle = '#888';
-		ctx.stroke();
-		ctx.lineWidth = 0.5;
 		// voronoi
 		if (!this.diagram) {return;}
-		var cells = this.diagram.cells;
-		var cellid, cell;
+		ctx.save();
+		// disk-like canvas if at least one rotation is applied: this
+		// because the canvas is not 'tilable' whenever at least one generator
+		// has a non-zero rotation value
+		if (this.hasRotation) {
+			ctx.beginPath();
+			ctx.arc(this.canvas.width/2,this.canvas.height/2, this.canvas.width/2, 0, 2*Math.PI, false);
+			ctx.clip();
+			if (backgroundGenerator) {
+				ctx.fillStyle = backgroundGenerator.color.rgbToHex();
+				ctx.fill();
+				}
+			}
+		ctx.lineWidth = 0.5;
+		ctx.strokeStyle = '#888';
+		var cells = this.diagram.cells,
+			cellid, cell,
+			halfedges, nHalfedges, iHalfedge, v,
+			showGrout = !this.dragging && this.showGrout,
+			showSites = this.showSites,
+			mustFill;
 		for (cellid in cells) {
 			cell = cells[cellid];
 			if (!(cell instanceof Voronoi.prototype.Cell)) {continue;}
-			var halfedges = cell.halfedges;
-			var nHalfedges = halfedges.length;
-			var v = halfedges[0].getStartpoint();
-			ctx.beginPath();
-			ctx.moveTo(v.x,v.y);
-			for (var iHalfedge=0; iHalfedge<nHalfedges; iHalfedge++) {
-				v = halfedges[iHalfedge].getEndpoint();
-				ctx.lineTo(v.x,v.y);
+			mustFill = !backgroundGenerator || backgroundGenerator !== cell.site.generator;
+			if (showGrout || mustFill) {
+				halfedges = cell.halfedges;
+				nHalfedges = halfedges.length;
+				v = halfedges[0].getStartpoint();
+				ctx.beginPath();
+				ctx.moveTo(v.x,v.y);
+				for (iHalfedge=0; iHalfedge<nHalfedges; iHalfedge++) {
+					v = halfedges[iHalfedge].getEndpoint();
+					ctx.lineTo(v.x,v.y);
+					}
+				if (mustFill) {
+					ctx.fillStyle = cell.site.color.rgbToHex();
+					ctx.fill();
+					}
+				if (showGrout) {
+					ctx.stroke();
+					}
 				}
-			ctx.fillStyle = 'rgb(' + String(Math.round(cell.site.color.r*255)) + ',' + String(Math.round(cell.site.color.g*255)) + ',' + String(Math.round(cell.site.color.b*255)) + ')';
-			ctx.fill();
-			if (this.grout) {ctx.stroke();}
+			if (showSites) {
+				ctx.fillStyle = 'black';
+				ctx.fillRect(cell.site.x-0.5,cell.site.y-0.5,1.5,1.5);
+				}
 			}
-		},
+		ctx.restore();
+/*		// bird's view tiling
+		if (!this.dragging) {
+			ctx = this.canvasPattern.getContext('2d');
+			ctx.drawImage(this.canvas,0,0,this.canvasPattern.width,this.canvasPattern.height)
+			ctx = this.canvasPreview.getContext('2d');
+			var pattern = ctx.createPattern(this.canvasPattern,'repeat')
+			ctx.fillStyle = pattern;
+			ctx.fillRect(0,0,this.canvasPreview.width,this.canvasPreview.height);
+			}
+*/		},
 
 	createGenerator: function(color) {
 		var generator = {
-			values: [0,0,0,0],
-			rotate: 0.0,
+			repeatx: 0,
+			repeaty: 0,
+			offsetx: 0,
+			offsety: 0,
+			rotate: 0,
 			color: color,
 			sites: [],
 			render: function() {
 				this.sites = [];
-				if (!this.values[0] || !this.values[1]) {return};
+				if (!this.repeatx || !this.repeaty) {return;}
 				var sites = this.sites,
-					yinc = 1/this.values[1],
-					ystep = this.values[1] + 2,
-					y = -yinc + this.values[3] * yinc,
-					xinc = 1/this.values[0],
-					xstep, x;
+					yinc = 1/this.repeaty,
+					ystep = this.repeaty + 2,
+					yoffset = this.offsety * yinc,
+					yin = -yinc,
+					xinc = 1/this.repeatx,
+					xstep,
+					xoffset = this.offsetx * xinc,
+					xin,
+					xout, yout,
+					radian = this.rotate*Math.PI,
+					cosfactor = Math.cos(radian),
+					sinfactor = Math.sin(radian),
+					xtransient, ytransient;
 				while (ystep-- > 0) {
-					x = -xinc + this.values[2] * xinc;
-					xstep = this.values[0] + 2;
+					xin = -xinc;
+					xstep = this.repeatx + 2;
 					while (xstep-- > 0) {
-						sites.push({x:x, y:y, color:this.color});
-						x += xinc;
+						xout = xin + xoffset;
+						yout = yin + yoffset;
+						if (radian) {
+							xtransient = xout-0.5;
+							ytransient = yout-0.5;
+							xout = xtransient*cosfactor - ytransient*sinfactor + 0.5;
+							yout = xtransient*sinfactor + ytransient*cosfactor + 0.5;
+							}
+						sites.push({x:xout, y:yout, color:this.color});
+						xin += xinc;
 						}
-					y += yinc;
+					yin += yinc;
 					}
 				}
 			};
@@ -212,69 +436,86 @@ var VoronoiDemo = {
 
 	compositeGenerators: function() {
 		this.sites = [];
-		var w = this.canvas.width;
-		var h = this.canvas.height;
-		var sitemap = {},
+		var w = this.canvas.width,
+			h = this.canvas.height,
+			sitemap = {},
 			generators = this.generators,
 			nGenerators = generators.length,
-			generator,
+			iGenerator, generator,
+			backgroundGenerator,
 			sites, nSites, iSite, site,
-			sitecolor, sitekey;
+			sitecolor, sitekey,
+			x, y;
 		for (iGenerator = 0; iGenerator<nGenerators; iGenerator++) {
 			generator = generators[iGenerator];
 			sites = generator.sites;
 			nSites = generator.sites.length;
+			if (!backgroundGenerator || nSites>backgroundGenerator.sites.length) {
+				backgroundGenerator = generator;
+				}
 			for (iSite = 0; iSite<nSites; iSite++) {
 				site = sites[iSite];
-				x = Math.round(w*site.x*100)/100;
-				y = Math.round(h*site.y*100)/100;
-				sitecolor = {r:generator.color.r, g:generator.color.g, b:generator.color.b};
-				sitekey = x * 10000 + y; // 10000, or whatever is over w and h
+				x = site.x;
+				y = site.y;
+				// ~~(a+0.5) == Math.round(a)
+				// as per http://jsperf.com/math-round-vs-hack/3 ~~ is likely faster
+				// as of now. It matters here since we could be in an interactive loop
+				x = (~~(w*x*100+0.5))/100;
+				y = (~~(h*y*100+0.5))/100;
+				sitekey = x * 10000 + y; // 10000, or whatever is safely over w and h
 				if (sitemap[sitekey]) {
-					sitecolor = sitemap[sitekey].color;
-					sitecolor.r = Math.min(Math.max(sitecolor.r, site.color.r, 0), 1.0);
-					sitecolor.g = Math.min(Math.max(sitecolor.g, site.color.g, 0), 1.0);
-					sitecolor.b = Math.min(Math.max(sitecolor.b, site.color.b, 0), 1.0);
+					sitecolor = sitemap[sitekey].color.slice(0);
+					sitecolor[0] = Math.max(sitecolor[0], generator.color[0]);
+					sitecolor[1] = Math.max(sitecolor[1], generator.color[1]);
+					sitecolor[2] = Math.max(sitecolor[2], generator.color[2]);
+					sitemap[sitekey].color = sitecolor;
+					sitemap[sitekey].generator = null;
 					}
 				else {
-					site = {x:x, y:y, color:sitecolor};
+					site = {x:x, y:y, color:generator.color, generator:generator};
 					sitemap[sitekey] = site;
 					this.sites.push(site);
 					}
 				}
 			}
+		this.backgroundGenerator = backgroundGenerator;
 		},
 
 	syncTextFields: function(which) {
 		var generators = this.generators,
 			nGenerators = generators.length,
 			iGenerator, generator, controls;
+		this.hasRotation = false;
 		for (iGenerator=0; iGenerator<nGenerators; iGenerator++) {
+			generator = generators[iGenerator];
 			if (which === undefined || iGenerator === which) {
-				generator = generators[iGenerator];
 				controls = this.controls[iGenerator];
-				controls[0].value = generator.values[0];
-				controls[1].value = generator.values[1];
-				controls[2].value = (generator.values[2] * 100).toFixed(0) + '%';
-				controls[3].value = (generator.values[3] * 100).toFixed(0) + '%';
+				controls.color.value = generator.color.rgbToHex();
+				controls.repeatx.value = generator.repeatx;
+				controls.repeaty.value = generator.repeaty;
+				controls.offsetx.value = generator.offsetx.toFixed(3);
+				controls.offsety.value = generator.offsety.toFixed(3);
+				controls.angle.value = generator.rotate.toFixed(3);
 				}
+			this.hasRotation = this.hasRotation || generator.rotate;
 			}
 		},
 
 	syncDragFields: function(which) {
-		var panes = $$('#voronoiGenerator .tileParms'),
-			generators = this.generators,
+		var generators = this.generators,
 			nGenerators = generators.length,
 			iGenerator, generator, knob;
 		for (iGenerator=0; iGenerator<nGenerators; iGenerator++) {
 			if (which === undefined || iGenerator === which) {
 				generator = generators[iGenerator];
-				knob = this.controls[iGenerator][4];
-				knob.style.left = generator.values[0] + 'px';
-				knob.style.top = generator.values[1] + 'px';
-				knob = this.controls[iGenerator][5];
-				knob.style.left = String(Math.floor((generator.values[2] + 0.5) * 50)) + 'px';
-				knob.style.top  = String(Math.floor((generator.values[3] + 0.5) * 50)) + 'px';
+				knob = this.controls[iGenerator].repeatKnob;
+				knob.style.left = generator.repeatx + 'px';
+				knob.style.top = generator.repeaty + 'px';
+				knob = this.controls[iGenerator].offsetKnob;
+				knob.style.left = String(Math.floor((generator.offsetx + 0.5) * 50)) + 'px';
+				knob.style.top  = String(Math.floor((generator.offsety + 0.5) * 50)) + 'px';
+				knob = this.controls[iGenerator].angleKnob;
+				knob.style.top  = String(Math.floor((generator.rotate) * 55)) + 'px';
 				}
 			}
 		},
@@ -284,21 +525,47 @@ var VoronoiDemo = {
 		this.syncDragFields(which);
 		},
 
-	selectPreset: function(iPreset) {
-		if (iPreset<0 || iPreset>=this.presets.length) {return;}
-		var preset = this.presets[iPreset],
-			generator;
-		for (var iGenerator=0; iGenerator<Math.min(this.generators.length,preset.length); iGenerator++) {
+	selectPreset: function(preset) {
+		var nGenerators = this.generators.length,
+			iGenerator, generator, preset_generator,
+			defaultColors = ['#ff8080','#80ff80','#8080ff'];
+		for (iGenerator=0; iGenerator<nGenerators; iGenerator++) {
 			generator = this.generators[iGenerator];
-			for (var iValue=0; iValue<4; iValue++) {
-				generator.values[iValue] = preset[iGenerator][iValue];
-				}
+			preset_generator = preset[iGenerator] || {};
+			generator.repeatx = preset_generator.repeatx || 0;
+			generator.repeaty = preset_generator.repeaty || 0;
+			generator.offsetx = preset_generator.offsetx || 0;
+			generator.offsety = preset_generator.offsety || 0;
+			generator.rotate = preset_generator.rotate || 0;
+			generator.color = (preset_generator.color || defaultColors[iGenerator] || '#999999').hexToRgb(true);
 			generator.render();
 			}
 		this.syncFields();
+		this.renderVoronoi();
 		this.renderCanvas();
+		this.updatePermalink();
+		},
+
+	updatePermalink: function(){
+		var query = [],
+			generators = this.generators,
+			nGenerators = generators.length,
+			iGenerator, generator;
+		for (iGenerator=0; iGenerator<nGenerators; iGenerator++) {
+			generator = generators[iGenerator];
+			query.push(generator.repeatx.toString(16));
+			query.push(generator.repeaty.toString(16));
+			query.push(Math.round((generator.offsetx+0.5)*1000).toString(16));
+			query.push(Math.round((generator.offsety+0.5)*1000).toString(16));
+			query.push(Math.round((generator.rotate)*1000).toString(16));
+			query.push(generator.color.rgbToHex().substr(1));
+			}
+		var permalink = location.protocol+'//'+location.host+location.pathname+'?generators='+query.join('-');
+		var el = $('permalink');
+		el.innerHTML = permalink;
+		el.href = permalink;
 		}
-	}
+	};
 
 window.addEvent('domready',function(){VoronoiDemo.init();});
 // -->
@@ -306,78 +573,132 @@ window.addEvent('domready',function(){VoronoiDemo.init();});
 </head>
 <body>
 <h1>Javascript implementation of Steven Fortune's algorithm to compute Voronoi diagrams<br/>Demo 3: Fancy tiling</h1>
-<div id="divroot" style="width:800px;">
-<p style="margin-top:0;"><a href="/voronoi/rhill-voronoi.php">&lt; Back to main page</a> | <a href="rhill-voronoi-demo1.php">Demo 1: measuring peformance</a> | <a href="rhill-voronoi-demo2.php">Demo 2: a bit of interactivity</a> | <b>Demo 3: Fancy tiling</b></p>
-<h4 class="divhdr">Sites generator</h4>
-<div class="divinfo" id="voronoiGenerator">
-<div id="hLegend">
-	<span>horizontal</span>
-	<span>vertical</span>
-	</div>		
-<div class="tileParms">
-	<div>
-		<span>Steps</span>
-		<div><div style="background:#f77;"></div></div>
-		<input type="text" size="6">
-		<input type="text" size="6">
-		</div>
-	<div>
-		<span>Offset</span>
-		<div><div style="background:#f77;"></div></div>
-		<input type="text" size="6">
-		<input type="text" size="6">
-		</div>
-	</div>
-<span>+</span>
-<div class="tileParms">
-	<div>
-		<span>Steps</span>
-		<div><div style="background:#7f7;"></div></div>
-		<input type="text" size="6">
-		<input type="text" size="6">
-		</div>
-	<div>
-		<span>Offset</span>
-		<div><div style="background:#7f7;"></div></div>
-		<input type="text" size="6">
-		<input type="text" size="6">
-		</div>
-	</div>
-<span>+</span>
-<div class="tileParms">
-	<div>
-		<span>Steps</span>
-		<div><div style="left:18px;top:24px;background:#77f;"></div></div>
-		<input type="text" size="6">
-		<input type="text" size="6">
-		</div>
-	<div>
-		<span>Offset</span>
-		<div><div style="left:0;top:0;background:#77f;"></div></div>
-		<input type="text" size="6">
-		<input type="text" size="6">
-		</div>
-	</div>		
-<div style="margin-left:1em;display:inline-block">
-	Presets:<br>
-	<button onclick="VoronoiDemo.selectPreset(0);">1</button>
-	<button onclick="VoronoiDemo.selectPreset(1);">2</button>
-	<button onclick="VoronoiDemo.selectPreset(2);">3</button><br>
-	<button onclick="VoronoiDemo.selectPreset(3);">4</button>
-	<button onclick="VoronoiDemo.selectPreset(4);">5</button>
-	<button onclick="VoronoiDemo.selectPreset(5);">6</button><br>
-	<button onclick="VoronoiDemo.selectPreset(6);">7</button>
-	</div>
-</div>
+<div id="divroot">
+<p style="margin-top:0;"><a href="/voronoi/rhill-voronoi.php">&lt; Back to main page</a> | <a href="rhill-voronoi-demo1.php">Demo 1: measuring peformance</a> | <a href="rhill-voronoi-demo2.php">Demo 2: a bit of interactivity</a> | <b>Demo 3: Fancy tiling</b> | <a href="http://www.raymondhill.net/blog/?p=458#comments">Comments</a></p>
+<div class="pane" id="canvasParent">
 <h4 class="divhdr">Canvas</h4>
-<div id="canvasParent">
 <noscript>You need to enable Javascript in your browser for this page to display properly.</noscript>
-<canvas id="voronoiCanvas" style="cursor:crosshair" width="600" height="600"></canvas>
+<canvas id="voronoiCanvas" style="cursor:crosshair" width="640" height="640"></canvas>
 <div id="voronoiNoCanvasAlert" style="display:none;padding:1em;background-color:#fcc;color:black;">
 <p>Your browser doesn't support the HTML5 &lt;canvas&gt; element technology.</p>
 <p>See <a target="_blank" href="http://en.wikipedia.org/wiki/Canvas_(HTML_element)">Wikipedia</a> for information on which browsers support the <u>HTML5 &lt;canvas&gt;</u> technology.</p>
 </div>
 </div>
+&nbsp;
+<div class="pane" id="voronoiGenerators">
+<h4 class="divhdr">1st-degree generators</h4>
+<div class="tileParms">
+	<div class="colorValues">
+		Color: <input type="color" value="#ff8080"> <a target="_blank" href="http://www.html5tutorial.info/html5-color.php">?</a>
+		</div>
+	<div class="hLegend">
+		<span>h</span>
+		<span>v</span>
+		</div>
+	<div class="repeatValues">
+		<div>Steps<div style="background:#f77;"></div></div>
+		<input type="text" size="6"><br>
+		<input type="text" size="6">
+		</div>
+	<div class="offsetValues">	
+		<div>Offset<div style="background:#f77;"></div></div>
+		<input type="text" size="6"><br>
+		<input type="text" size="6">
+		</div>
+	<div class="rotateValues">
+		<div>Rot<div style="background:#f77;"></div></div>
+		<input type="text" size="6"><br>
+		<input type="text" size="6" style="visibility:hidden">
+		</div>
+	</div>	
+<div class="tileParms">
+	<div class="colorValues">
+		Color: <input type="color" value="#80ff80">
+		</div>
+	<div class="hLegend">
+		<span>h</span>
+		<span>v</span>
+		</div>
+	<div class="repeatValues">
+		<div><div style="background:#7f7;"></div>Steps</div>
+		<input type="text" size="6"><br>
+		<input type="text" size="6">
+		</div>
+	<div class="offsetValues">
+		<div><div style="background:#7f7;"></div>Offset</div>
+		<input type="text" size="6"><br>
+		<input type="text" size="6">
+		</div>
+	<div class="rotateValues">
+		<div><div style="background:#7f7;"></div>Rot</div>
+		<input type="text" size="6"><br>
+		<input type="text" size="6" style="visibility:hidden">
+		</div>
+	</div>
+<div class="tileParms">
+	<div class="colorValues">
+		Color: <input type="color" value="#8080ff">
+		</div>
+	<div class="hLegend">
+		<span>h</span>
+		<span>v</span>
+		</div>
+	<div class="repeatValues">
+		<div><div style="background:#77f;"></div>Steps</div>
+		<input type="text" size="6"><br>
+		<input type="text" size="6">
+		</div>
+	<div class="offsetValues">
+		<div><div style="background:#77f;"></div>Offset</div>
+		<input type="text" size="6"><br>
+		<input type="text" size="6">
+		</div>
+	<div class="rotateValues">
+		<div><div style="background:#77f;"></div>Rot</div>
+		<input type="text" size="6"><br>
+		<input type="text" size="6" style="visibility:hidden">
+		</div>
+	</div>
+<div style="margin-top:1em">
+	<input id="showGrout" type="checkbox" checked="checked" value="">Show grout<br>
+	<input id="showSites" type="checkbox" value="">Show Voronoi sites
+	</div>
+<div style="margin-top:1em">
+	Presets:<br>
+	<script type="text/javascript">
+	<!--
+	(function(){
+		for (var i=0; i<VoronoiDemo.presets.length; i++) {
+			document.write('<button onclick="VoronoiDemo.selectPreset(VoronoiDemo.presets['+i+']);">'+String(i+1)+'</button>');
+			document.write((i+1) % 3 ? ' ' : '<br>');
+			}
+		if (VoronoiDemo.urlpreset) {
+			document.write('<button onclick="VoronoiDemo.selectPreset(VoronoiDemo.urlpreset);">URL</button>');
+			}
+		}());
+	// -->
+	</script>
+	</div>
 </div>
+</div>
+<div>
+	<h4>Permalink for the above Voronoi diagram</h4>
+	<p style="margin-top:0.5em"><a id="permalink" href="#"></a></p>
+	</div>
+<!-- 
+<div>
+	<h4>Tiling preview</h4>
+	<canvas id="canvasPattern" style="display:none;width:100px;height:100px;"></canvas>
+	<canvas id="canvasTilingPreview" style="width:640px;height:640px;"></canvas>
+	</div>
+-->
+<div>
+	<h4>Export as SVG</h4>
+	<p style="margin-top:0.5em">Coming soon (I guess...)</p>
+	</div>
+<div>
+	<h4>Further reading</h4>
+	<p style="margin-top:0.5em"><a href="http://www.cs.washington.edu/homes/csk/tile/papers/kaplan_isama1999.pdf">Voronoi diagrams and ornamental design</a> by Craig S. Kaplan.<br><a href="http://www.josleys.com/show_gallery.php?galid=284">Mathematical imagery</a> by Jos Leys.</p>
+	</div>
 </body>
 </html>
