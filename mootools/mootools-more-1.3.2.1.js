@@ -1,6 +1,6 @@
 // MooTools: the javascript framework.
-// Load this file's selection again by visiting: http://mootools.net/more/d4e0cddc091a13e814dd53a6609b5cce 
-// Or build this file again with packager using: packager build More/Drag
+// Load this file's selection again by visiting: http://mootools.net/more/5b3121b84b8151d70a6f190d1e693180 
+// Or build this file again with packager using: packager build More/More More/Drag
 /*
 ---
 copyrights:
