@@ -47,8 +47,8 @@ Portions of this software use, depend, or was inspired by the work of:
   https://github.com/fbuihuu/libtree/blob/master/rb.c
   I ported to Javascript the C code of a Red-Black tree implementation by
   Franck Bui-Huu, and further altered the code for Javascript efficiency
-  and to very specifically fit the purpose of holding the beachline (key
-  is a mutable vector-like rather than an unmutable data point), and unused
+  and to very specifically fit the purpose of holding the beachline (the key
+  is a variable range rather than an unmutable data point), and unused
   code paths have been removed. Each node in the tree is actually a beach
   section on the beachline. Using a tree structure for the beachline remove
   the need to lookup the beach section in the array at removal time, as
@@ -948,6 +948,7 @@ Voronoi.prototype.addArc = function(site) {
 	};
 
 Voronoi.prototype.circumcircle = function(a,b,c) {
+	// http://mathforum.org/library/drmath/view/55002.html
 	var ax=a.x;
 	var ay=a.y;
 	var bx=b.x-ax;
@@ -955,6 +956,7 @@ Voronoi.prototype.circumcircle = function(a,b,c) {
 	var cx=c.x-ax;
 	var cy=c.y-ay;
 	var d=2*(bx*cy-by*cx);
+	//if (!d) {throw 'Voronoi.circumcircle(): Division by zero.';}
 	var hb=bx*bx+by*by;
 	var hc=cx*cx+cy*cy;
 	var x=(cy*hb-by*hc)/d;
@@ -974,7 +976,10 @@ Voronoi.prototype.addCircleEvent = function(arc,sweep) {
 	if (lSite===rSite || lSite===cSite || cSite===rSite) {return;}
 	// if points l->c->r are clockwise, then center beach section does not
 	// converge, hence it can't end up as a vertex
-	if ((lSite.y-cSite.y)*(rSite.x-cSite.x)<=(lSite.x-cSite.x)*(rSite.y-cSite.y)) {return;}
+	// TODO (rhill 2011-05-21): Nasty finite precision error which caused circumcircle() to return infinites
+	// It sees > 1e-12 here, however circumcircle() computes a diameter of 0. Using 1e-11 seems to fix
+	// the problem.
+	if ((lSite.y-cSite.y)*(rSite.x-cSite.x)-(lSite.x-cSite.x)*(rSite.y-cSite.y) <= 1e-11) {return;}
 	// find circumscribed circle 
 	var circle=this.circumcircle(lSite,cSite,rSite);
 	// not valid if the bottom-most point of the circumcircle
@@ -1213,7 +1218,6 @@ Voronoi.prototype.connectEdge = function(edge,bbox) {
 			vb = new this.Vertex((yt-f.b)/f.m,yt);
 			}
 		}
-
 	edge.va = va;
 	edge.vb = vb;
 	return true;
