@@ -81,15 +81,15 @@ var VoronoiDemo = {
 		ctx.globalAlpha = 1;
 		ctx.beginPath();
 		ctx.rect(0,0,this.canvas.width,this.canvas.height);
-		ctx.fillStyle = '#fff';
+		ctx.fillStyle = 'white';
 		ctx.fill();
 		ctx.strokeStyle = '#888';
 		ctx.stroke();
 		// voronoi
 		if (!this.diagram) {return;}
-		ctx.strokeStyle='#000';
-		ctx.beginPath();
 		// edges
+		ctx.beginPath();
+		ctx.strokeStyle='#000';
 		var edges = this.diagram.edges;
 		var nEdges = edges.length;
 		var edge, v;
@@ -100,14 +100,17 @@ var VoronoiDemo = {
 			v = edge.vb;
 			ctx.lineTo(v.x,v.y);
 			}
+		ctx.stroke();
 		// sites
+		ctx.beginPath();
+		ctx.fillStyle = '#44f';
 		var sites = this.sites;
 		var nSites = sites.length;
 		for (var iSite=nSites-1; iSite>=0; iSite-=1) {
 			v = sites[iSite];
-			ctx.rect(v.x-0.5,v.y-0.5,1,1);
+			ctx.rect(v.x-2/3,v.y-2/3,2,2);
 			}
-		ctx.stroke();
+		ctx.fill();
 		},
 	};
 // -->
@@ -116,7 +119,7 @@ var VoronoiDemo = {
 <body onload="VoronoiDemo.init();">
 <h1>Javascript implementation of Steven Fortune's algorithm to compute Voronoi diagrams<br/>Demo 1: measuring peformance</h1>
 <div id="divroot" style="width:800px;">
-<p style="margin-top:0;"><a href="/voronoi/rhill-voronoi.php">&lt; Back to main page</a> | <b>Demo 1: measuring peformance</b> | <a href="rhill-voronoi-demo2.php">Demo 2: a bit of interactivity</a> | <a href="rhill-voronoi-demo3.php">Demo 3: Fancy tiling</a></p>
+<p style="margin-top:0;"><a href="/voronoi/rhill-voronoi.php">&lt; Back to main page</a> | <b>Demo 1: measuring peformance</b> | <a href="rhill-voronoi-demo2.php">Demo 2: a bit of interactivity</a> | <a href="rhill-voronoi-demo3.php">Demo 3: Fancy tiling</a> | <a href="http://www.raymondhill.net/blog/?p=458#comments">Comments</a></p>
 <h4 class="divhdr">Sites generator</h4>
 <div class="divinfo" id="voronoiGenerator">
 <input type="button" value="Generate" onclick="VoronoiDemo.randomSites(parseInt(document.getElementById('voronoiNumberSites').value,10),true);VoronoiDemo.render();"/> or <input type="button" value="Add" onclick="VoronoiDemo.randomSites(parseInt(document.getElementById('voronoiNumberSites').value,10),false);VoronoiDemo.render();"/><input id="voronoiNumberSites" type="text" value="100" size="5" maxlength="5"/> sites randomly (Warning: performance might suffer the more sites you add.)
@@ -190,15 +193,15 @@ var VoronoiDemo = {
 		ctx.globalAlpha = 1;
 		ctx.beginPath();
 		ctx.rect(0,0,this.canvas.width,this.canvas.height);
-		ctx.fillStyle = '#fff';
+		ctx.fillStyle = 'white';
 		ctx.fill();
 		ctx.strokeStyle = '#888';
 		ctx.stroke();
 		// voronoi
 		if (!this.diagram) {return;}
-		ctx.strokeStyle='#000';
-		ctx.beginPath();
 		// edges
+		ctx.beginPath();
+		ctx.strokeStyle='#000';
 		var edges = this.diagram.edges;
 		var nEdges = edges.length;
 		var edge, v;
@@ -209,14 +212,17 @@ var VoronoiDemo = {
 			v = edge.vb;
 			ctx.lineTo(v.x,v.y);
 			}
+		ctx.stroke();
 		// sites
+		ctx.beginPath();
+		ctx.fillStyle = '#44f';
 		var sites = this.sites;
 		var nSites = sites.length;
 		for (var iSite=nSites-1; iSite>=0; iSite-=1) {
 			v = sites[iSite];
-			ctx.rect(v.x-0.5,v.y-0.5,1,1);
+			ctx.rect(v.x-2/3,v.y-2/3,2,2);
 			}
-		ctx.stroke();
+		ctx.fill();
 		},
 	};
 // -->
