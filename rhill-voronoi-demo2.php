@@ -158,11 +158,12 @@ var VoronoiDemo = {
 		// draw sites
 		var site;
 		ctx.beginPath();
+		ctx.fillStyle = '#44f';
 		for (var iSite=nSites-1; iSite>=0; iSite-=1) {
 			site = sites[iSite];
-			ctx.rect(site.x-0.5,site.y-0.5,1,1);
+			ctx.rect(site.x-2/3,site.y-2/3,2,2);
 			}
-		ctx.stroke();
+		ctx.fill();
 		},
 	};
 // -->
@@ -171,7 +172,7 @@ var VoronoiDemo = {
 <body onload="VoronoiDemo.init();">
 <h1>Javascript implementation of Steven Fortune's algorithm to compute Voronoi diagrams<br/>Demo 2: A bit of interactivity added</h1>
 <div id="divroot" style="width:800px;">
-<p style="margin-top:0;"><a href="/voronoi/rhill-voronoi.php">&lt; Back to main page</a> | <a href="rhill-voronoi-demo1.php">Demo 1: measuring peformance</a> | <b>Demo 2: a bit of interactivity</b> | <a href="rhill-voronoi-demo3.php">Demo 3: Fancy tiling</a></p>
+<p style="margin-top:0;"><a href="/voronoi/rhill-voronoi.php">&lt; Back to main page</a> | <a href="rhill-voronoi-demo1.php">Demo 1: measuring peformance</a> | <b>Demo 2: a bit of interactivity</b> | <a href="rhill-voronoi-demo3.php">Demo 3: Fancy tiling</a> | <a href="http://www.raymondhill.net/blog/?p=458#comments">Comments</a></p>
 <h4 class="divhdr">Sites generator</h4>
 <div class="divinfo" id="voronoiGenerator">
 <input type="button" value="Generate" onclick="VoronoiDemo.randomSites(parseInt(document.getElementById('voronoiNumberSites').value,10),true);VoronoiDemo.render();"/> or <input type="button" value="Add" onclick="VoronoiDemo.randomSites(parseInt(document.getElementById('voronoiNumberSites').value,10),false);VoronoiDemo.render();"/><input id="voronoiNumberSites" type="text" value="10" size="5" maxlength="5"/> sites randomly (Warning: performance might suffer the more sites you add.)
@@ -321,11 +322,12 @@ var VoronoiDemo = {
 		// draw sites
 		var site;
 		ctx.beginPath();
+		ctx.fillStyle = '#44f';
 		for (var iSite=nSites-1; iSite>=0; iSite-=1) {
 			site = sites[iSite];
-			ctx.rect(site.x-0.5,site.y-0.5,1,1);
+			ctx.rect(site.x-2/3,site.y-2/3,2,2);
 			}
-		ctx.stroke();
+		ctx.fill();
 		},
 	};
 // -->
