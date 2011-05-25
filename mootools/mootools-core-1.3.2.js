@@ -3,10 +3,10 @@
 MooTools: the javascript framework
 
 web build:
- - http://mootools.net/core/3e9fdb77451ca54389d299394c2d4af4
+ - http://mootools.net/core/a658f28c6a59e22dfb2d2b840a39f6fa
 
 packager build:
- - packager build Core/Class.Extras Core/Element.Style Core/Element.Dimensions Core/DOMReady
+ - packager build Core/Class Core/Class.Extras Core/Element.Dimensions Core/DOMReady
 
 copyrights:
   - [MooTools](http://mootools.net)
