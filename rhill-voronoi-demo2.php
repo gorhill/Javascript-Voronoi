@@ -10,7 +10,7 @@
 body {font-family:tahoma,verdana,arial;font-size:13px;margin:0;padding:0}
 body > div {margin-left:4px;margin-right:4px;}
 body > div > div {margin:0;border:1px solid #ccc;border-top:0;padding:4px;}
-h1 {font:bold 20px sans-serif;margin:0 0 0.5em 0;padding:4px;background-color:#c9d7f1;}
+h1 {margin:0 0 0.5em 0;padding: 4px 5em 4px 4px;font:bold 20px sans-serif;background-color:#c9d7f1;}
 h4 {font-size:14px;margin:0.5em 0 0 0;border:0;border-bottom:solid 1px #c9d7f1;padding:2px;background-color:#e5ecf9;}
 h4 > span {cursor:pointer}
 #canvasParent {margin-top:0;margin-bottom:1em;padding:0;border:0}
@@ -170,6 +170,7 @@ var VoronoiDemo = {
 </script>
 </head>
 <body onload="VoronoiDemo.init();">
+<a href="http://github.com/gorhill/Javascript-Voronoi"><img style="position:absolute;top:0;right:0;border:0;" src="https://d3nwyuy0nl342s.cloudfront.net/img/7afbc8b248c68eb468279e8c17986ad46549fb71/687474703a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f6461726b626c75655f3132313632312e706e67" alt="Fork me on GitHub"></a>
 <h1>Javascript implementation of Steven Fortune's algorithm to compute Voronoi diagrams<br/>Demo 2: A bit of interactivity added</h1>
 <div id="divroot" style="width:800px;">
 <p style="margin-top:0;"><a href="/voronoi/rhill-voronoi.php">&lt; Back to main page</a> | <a href="rhill-voronoi-demo1.php">Demo 1: measuring peformance</a> | <b>Demo 2: a bit of interactivity</b> | <a href="rhill-voronoi-demo3.php">Demo 3: Fancy tiling</a> | <a href="http://www.raymondhill.net/blog/?p=458#comments">Comments</a></p>
