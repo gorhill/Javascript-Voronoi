@@ -136,7 +136,7 @@ Voronoi.Vertex object:
   x: the x coordinate.
   y: the y coordinate.
 
-TODO: Identify opportunity for performance improvement
+TODO: Identify opportunities for performance improvement.
 TODO: Let the user close the Voronoi cells, do not do it automatically. Not only let
       him close the cells, but also allow him to close more than once using a different
       bounding box for the same Voronoi diagram.
@@ -803,8 +803,8 @@ Voronoi.prototype.setEdgeEndpoint = function(edge, lSite, rSite, vertex) {
 	};
 
 Voronoi.prototype.removeArc = function(event) {
-	var x = event.center.x,
-		y = event.center.y,
+	var x = event.x,
+		y = event.ycenter,
 		directrix = event.y,
 		disappearingTransitions = [event.arc];
 	// there could be more than one empty arc at the deletion point, this
@@ -1008,6 +1008,8 @@ Voronoi.prototype.addArc = function(site) {
 
 Voronoi.prototype.circumcircle = function(a,b,c) {
 	// http://mathforum.org/library/drmath/view/55002.html
+	// Except that I bring the origin at A to simplify
+	// calculation
 	var ax=a.x,
 		ay=a.y,
 		bx=b.x-ax,
@@ -1024,36 +1026,60 @@ Voronoi.prototype.circumcircle = function(a,b,c) {
 
 Voronoi.prototype.addCircleEvent = function(arc,sweep) {
 	var lArc = arc.getPrevious(),
-		rArc=arc.getNext();
-	if (!lArc || !rArc) {return;}
+		rArc = arc.getNext();
+	if (!lArc || !rArc) {return;} // does that ever happen?
 	var lSite = lArc.site,
 		cSite = arc.site,
 		rSite = rArc.site;
-	// if any two sites are repeated in the same beach section triplet,
-	// there can't be convergence
-	if (lSite===rSite || lSite===cSite || cSite===rSite) {return;}
-	// if points l->c->r are clockwise, then center beach section does not
-	// converge, hence it can't end up as a vertex
-	// TODO (rhill 2011-05-21): Nasty finite precision error which caused circumcircle() to return infinites
-	// It sees > 1e-12 here, however circumcircle() computes a diameter of 0. Using 1e-11 seems to fix
-	// the problem.
-	if ((lSite.y-cSite.y)*(rSite.x-cSite.x)-(lSite.x-cSite.x)*(rSite.y-cSite.y) <= 1e-11) {return;}
-	// find circumscribed circle 
-	var circle = this.circumcircle(lSite,cSite,rSite),
-		ybottom = circle.y+circle.radius;
-	// not valid if the bottom-most point of the circumcircle is above the sweep line
-	// TODO: And what if it is on the sweep line, should it be discarded if it is
-	// *before* the last processed x value? Need to think about this.
-	//if (this.lessThanWithEpsilon(ybottom,sweep)) {
-	//	return;
-	//	}
+
+	// If site of left beachsection is same as site of
+	// right beachsection, there can't be convergence
+	if (lSite===rSite) {return;}
+
+	// Find the circumscribed circle for the three sites associated
+	// with the beachsection triplet.
+	// rhill 2011-05-26: It is more efficient to calculate in-place
+	// rather than getting the resulting circumscribed circle from an
+	// object returned by calling Voronoi.circumcircle()
+	// http://mathforum.org/library/drmath/view/55002.html
+	// Except that I bring the origin at cSite to simplify calculations.
+	// The bottom-most part of the circumcircle is our Fortune 'circle
+	// event', and its center is a vertex potentially part of the final
+	// Voronoi diagram.
+	var bx = cSite.x,
+		by = cSite.y,
+		ax = lSite.x-bx,
+		ay = lSite.y-by,
+		cx = rSite.x-bx,
+		cy = rSite.y-by;
+
+	// If points l->c->r are clockwise, then center beach section does not
+	// converge, hence it can't end up as a vertex (we reuse 'd' here, which
+	// sign is reverse of the orientation, hence we reverse the test.
+	// http://en.wikipedia.org/wiki/Curve_orientation#Orientation_of_a_simple_polygon
+	// rhill 2011-05-21: Nasty finite precision error which caused circumcircle() to
+	// return infinites.
+	// 1e-12 seems to fix the problem.
+	var d = 2*(ax*cy-ay*cx);
+	if (d >= -2e-12){return;}
+
+	var	ha = ax*ax+ay*ay,
+		hc = cx*cx+cy*cy,
+		x = (cy*ha-ay*hc)/d,
+		y = (ax*hc-cx*ha)/d,
+		xcenter = x+bx,
+		ycenter = y+by,
+		ybottom = ycenter+this.sqrt(x*x+y*y);
+
+	// Important: ybottom should always be under or at sweep, so no need
+	// to waste CPU cycles by checking
 	arc.circleEvent = {
 		type: this.CIRCLE_EVENT,
 		arc: arc,
 		site: cSite,
-		x: circle.x,
+		x: xcenter,
 		y: ybottom,
-		center: circle
+		ycenter: ycenter
 		};
 	this.queuePushCircle(arc.circleEvent);
 	};
@@ -1178,16 +1204,14 @@ Voronoi.prototype.connectEdge = function(edge,bbox) {
 	if (!!vb) {return true;}
 
 	// make local copy for performance purpose
-	var va = edge.va;
-	var xl = bbox.xl;
-	var xr = bbox.xr;
-	var yt = bbox.yt;
-	var yb = bbox.yb;
-
-	// get the line formula of the bisector
-	var lSite = edge.lSite;
-	var rSite = edge.rSite;
-	var f = this.getBisector(lSite,rSite);
+	var va = edge.va,
+		xl = bbox.xl,
+		xr = bbox.xr,
+		yt = bbox.yt,
+		yb = bbox.yb,
+		lSite = edge.lSite,
+		rSite = edge.rSite,
+		f = this.getBisector(lSite,rSite); // get the line formula of the bisector
 
 	// remember, direction of line (relative to left site):
 	// upward: left.x < right.x
@@ -1440,7 +1464,7 @@ Voronoi.prototype.closeCells = function(bbox) {
 // rhill 2011-05-19:
 //   Voronoi sites are kept client-side now, to allow
 //   user to freely modify content. At compute time,
-//   site references are copied locally.
+//   *references* to sites are copied locally.
 Voronoi.prototype.compute = function(sites, bbox) {
 	// to measure execution time
 	var startTime = new Date();
