@@ -437,8 +437,8 @@ Voronoi.prototype.Beachline.prototype.rotateRight = function(node) {
 //  to test by hand)."
 Voronoi.prototype.Beachline.prototype.validate = function(root) {
 	if (!root) {return 1;}
-	var left = root.left;
-	var right = root.right;
+	var left = root.left,
+		right = root.right;
 	/* Consecutive red links */
 	if (root.isRed) {
 		if ((left && left.isRed) || (right && right.isRed)) {
@@ -526,22 +526,22 @@ Voronoi.prototype.Beachline.prototype.Beachsection.prototype._leftParabolicCut =
 	// computers' finite arithmetic precision.
 	// maybe can still be improved, will see if any
 	// more of this kind of errors pop up again
-	var rfocx = site.x;
-	var rfocy = site.y;
+	var rfocx = site.x,
+		rfocy = site.y;
 	// parabola in degenerate case where focus is on directrix
 	if (rfocy === directrix) {return rfocx;}
-	var lfocx = lSite.x;
-	var lfocy = lSite.y;
+	var lfocx = lSite.x,
+		lfocy = lSite.y;
 	// parabola in degenerate case where focus is on directrix
 	if (lfocy === directrix) {return lfocx;}
 	// both parabolas have same distance to directrix, thus break point is midway
 	if (rfocy === lfocy) {return (rfocx+lfocx)/2;}
 	// calculate break point the normal way
-	var pby2 = rfocy-directrix;
-	var plby2 = lfocy-directrix;
-	var hl = lfocx-rfocx;
-	var aby2 = 1/pby2-1/plby2;
-	var b = hl/plby2;
+	var pby2 = rfocy-directrix,
+		plby2 = lfocy-directrix,
+		hl = lfocx-rfocx,
+		aby2 = 1/pby2-1/plby2,
+		b = hl/plby2;
 	return (-b+this.sqrt(b*b-2*aby2*(hl*hl/(-2*plby2)-lfocy+plby2/2+rfocy-pby2/2)))/aby2+rfocx;
 	};
 
@@ -803,10 +803,10 @@ Voronoi.prototype.setEdgeEndpoint = function(edge, lSite, rSite, vertex) {
 	};
 
 Voronoi.prototype.removeArc = function(event) {
-	var x = event.center.x;
-	var y = event.center.y;
-	var directrix = event.y;
-	var disappearingTransitions = [event.arc];
+	var x = event.center.x,
+		y = event.center.y,
+		directrix = event.y,
+		disappearingTransitions = [event.arc];
 	// there could be more than one empty arc at the deletion point, this
 	// happens when more than two edges are linked by the same vertex,
 	// so we will collect all those edges by looking up both sides of
@@ -842,8 +842,8 @@ Voronoi.prototype.removeArc = function(event) {
 	this.voidCircleEvent(rArc);
 	// walk through all the disappearing transitions between beach sections and
 	// set the start point of their (implied) edge.
-	var nArcs = disappearingTransitions.length;
-	var iArc;
+	var nArcs = disappearingTransitions.length,
+		iArc;
 	for (iArc=1; iArc<nArcs; iArc++) {
 		rArc = disappearingTransitions[iArc];
 		lArc = disappearingTransitions[iArc-1];
@@ -873,17 +873,17 @@ Voronoi.prototype.removeArc = function(event) {
 	};
 
 Voronoi.prototype.addArc = function(site) {
-	var x = site.x;
-	var directrix = site.y;
+	var x = site.x,
+		directrix = site.y;
 
 	// create a new beach section object for the site
 	var newArc = new this.beachline.Beachsection(site);
 
 	// find the left and right beach sections which will surround the newly
 	// created beach section.
-	var lArc, rArc;
-	var xl, xr;
-	var node = this.beachline.root;
+	var lArc, rArc,
+		xl, xr,
+		node = this.beachline.root;
 	while (node) {
 		xl = this.leftBreakPoint(node,directrix);
 		if (this.lessThanWithEpsilon(x,xl)) {
@@ -1008,28 +1008,27 @@ Voronoi.prototype.addArc = function(site) {
 
 Voronoi.prototype.circumcircle = function(a,b,c) {
 	// http://mathforum.org/library/drmath/view/55002.html
-	var ax=a.x;
-	var ay=a.y;
-	var bx=b.x-ax;
-	var by=b.y-ay;
-	var cx=c.x-ax;
-	var cy=c.y-ay;
-	var d=2*(bx*cy-by*cx);
-	//if (!d) {throw 'Voronoi.circumcircle(): Division by zero.';}
-	var hb=bx*bx+by*by;
-	var hc=cx*cx+cy*cy;
-	var x=(cy*hb-by*hc)/d;
-	var y=(bx*hc-cx*hb)/d;
+	var ax=a.x,
+		ay=a.y,
+		bx=b.x-ax,
+		by=b.y-ay,
+		cx=c.x-ax,
+		cy=c.y-ay,
+		d=2*(bx*cy-by*cx), //if (!d) {throw 'Voronoi.circumcircle(): Division by zero.';}
+		hb=bx*bx+by*by,
+		hc=cx*cx+cy*cy,
+		x=(cy*hb-by*hc)/d,
+		y=(bx*hc-cx*hb)/d;
 	return {x:x+ax,y:y+ay,radius:this.sqrt(x*x+y*y)};
 	};
 
 Voronoi.prototype.addCircleEvent = function(arc,sweep) {
-	var lArc=arc.getPrevious();
-	var rArc=arc.getNext();
+	var lArc = arc.getPrevious(),
+		rArc=arc.getNext();
 	if (!lArc || !rArc) {return;}
-	var lSite=lArc.site;
-	var cSite=arc.site;
-	var rSite=rArc.site;
+	var lSite = lArc.site,
+		cSite = arc.site,
+		rSite = rArc.site;
 	// if any two sites are repeated in the same beach section triplet,
 	// there can't be convergence
 	if (lSite===rSite || lSite===cSite || cSite===rSite) {return;}
@@ -1040,22 +1039,21 @@ Voronoi.prototype.addCircleEvent = function(arc,sweep) {
 	// the problem.
 	if ((lSite.y-cSite.y)*(rSite.x-cSite.x)-(lSite.x-cSite.x)*(rSite.y-cSite.y) <= 1e-11) {return;}
 	// find circumscribed circle 
-	var circle=this.circumcircle(lSite,cSite,rSite);
-	// not valid if the bottom-most point of the circumcircle
-	// is above the sweep line
+	var circle = this.circumcircle(lSite,cSite,rSite),
+		ybottom = circle.y+circle.radius;
+	// not valid if the bottom-most point of the circumcircle is above the sweep line
 	// TODO: And what if it is on the sweep line, should it be discarded if it is
 	// *before* the last processed x value? Need to think about this.
-	var ybottom=circle.y+circle.radius;
 	//if (this.lessThanWithEpsilon(ybottom,sweep)) {
 	//	return;
 	//	}
-	arc.circleEvent={
+	arc.circleEvent = {
 		type: this.CIRCLE_EVENT,
 		arc: arc,
 		site: cSite,
 		x: circle.x,
 		y: ybottom,
-		center: {x:circle.x, y:circle.y}
+		center: circle
 		};
 	this.queuePushCircle(arc.circleEvent);
 	};
@@ -1084,8 +1082,8 @@ Voronoi.prototype.queueSanitize = function() {
 	// the number of beach sections on the beachline.
 	// also, we want to splice from right to left to minimize the size
 	// of memory moves.
-	var q = this.circEvents;
-	var iRight = q.length;
+	var q = this.circEvents,
+		iRight = q.length;
 	if (!iRight) {return;}
 	// remove trailing void events only
 	var iLeft = iRight;
@@ -1121,8 +1119,8 @@ Voronoi.prototype.queuePopSite = function() {
 
 Voronoi.prototype.queuePop = function() {
 	// we will return a site or circle event
-	var siteEvent = this.siteEvents.length > 0 ? this.siteEvents[this.siteEvents.length-1] : null;
-	var circEvent = this.circEvents.length > 0 ? this.circEvents[this.circEvents.length-1] : null;
+	var siteEvent = this.siteEvents.length > 0 ? this.siteEvents[this.siteEvents.length-1] : null,
+		circEvent = this.circEvents.length > 0 ? this.circEvents[this.circEvents.length-1] : null;
 	// if one and only one is null, the other is a valid event
 	if ( Boolean(siteEvent) !== Boolean(circEvent) ) {
 		return siteEvent ? this.queuePopSite() : this.circEvents.pop();
@@ -1143,11 +1141,10 @@ Voronoi.prototype.queuePop = function() {
 //   horrible exponential decrease in performance -- expected, but
 //   I wanted to confirm. Confirmed.
 Voronoi.prototype.queuePushCircle = function(o) {
-	var q = this.circEvents;
-	var r = q.length;
+	var q = this.circEvents,
+		r = q.length;
 	if (r) {
-		var l = 0;
-		var i, c;
+		var l = 0, i, c;
 		while (l<r) {
 			i = (l+r)>>1;
 			c = o.y-q[i].y;
@@ -1288,14 +1285,14 @@ Voronoi.prototype.connectEdge = function(edge,bbox) {
 // Thanks!
 // A bit modified to minimize code paths
 Voronoi.prototype.clipEdge = function(edge,bbox) {
-	var ax = edge.va.x;
-	var ay = edge.va.y;
-	var bx = edge.vb.x;
-	var by = edge.vb.y;
-	var t0 = 0;
-	var t1 = 1;
-	var dx = bx-ax;
-	var dy = by-ay;
+	var ax = edge.va.x,
+		ay = edge.va.y,
+		bx = edge.vb.x,
+		by = edge.vb.y,
+		t0 = 0,
+		t1 = 1,
+		dx = bx-ax,
+		dy = by-ay;
 	// left
 	var q = ax-bbox.xl;
 	if (dx===0 && q<0) {return false;}
@@ -1374,14 +1371,14 @@ Voronoi.prototype.clipEdges = function(bbox) {
 // Each cell refers to its associated site, and a list
 // of halfedges ordered counterclockwise.
 Voronoi.prototype.closeCells = function(bbox) {
-	var xl = bbox.xl;
-	var xr = bbox.xr;
-	var yt = bbox.yt;
-	var yb = bbox.yb;
 	// clip edges to bounding box
 	this.clipEdges(bbox);
 	// prune and order halfedges
-	var cells = this.cells,
+	var xl = bbox.xl,
+		xr = bbox.xr,
+		yt = bbox.yt,
+		yb = bbox.yb,
+		cells = this.cells,
 		cellid, cell,
 		iLeft, iRight,
 		halfedges, nHalfedges,
