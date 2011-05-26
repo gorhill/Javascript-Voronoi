@@ -203,7 +203,7 @@ var VoronoiDemo = {
 			generator.repeaty = coords.top;
 			var	hasTiles = generator.repeatx && generator.repeaty;
 			generator.render();
-			demo.syncTextFields(iGenerator);
+			demo.syncTextFields(iGenerator, 'repeat');
 			if (hadTiles || hasTiles) {
 				demo.renderVoronoi();
 				demo.renderCanvas();
@@ -216,7 +216,7 @@ var VoronoiDemo = {
 			generator.offsetx = coords.left / 50 - 0.5;
 			generator.offsety = coords.top / 50 - 0.5;
 			generator.render();
-			demo.syncTextFields(iGenerator);
+			demo.syncTextFields(iGenerator, 'offset');
 			if (hasTiles) {
 				demo.renderVoronoi();
 				demo.renderCanvas();
@@ -228,7 +228,7 @@ var VoronoiDemo = {
 				hasTiles = generator.repeatx && generator.repeaty;
 			generator.rotate = coords.top / 55;
 			generator.render();
-			demo.syncTextFields(iGenerator);
+			demo.syncTextFields(iGenerator, 'rotate');
 			if (hasTiles) {
 				demo.renderVoronoi();
 				demo.renderCanvas();
@@ -241,10 +241,10 @@ var VoronoiDemo = {
 				repeaty: el.getElement('.repeatValues > input:nth-of-type(2)'),
 				offsetx: el.getElement('.offsetValues > input:nth-of-type(1)'),
 				offsety: el.getElement('.offsetValues > input:nth-of-type(2)'),
-				angle: el.getElement('.rotateValues > input:nth-of-type(1)'),
+				rotate: el.getElement('.rotateValues > input:nth-of-type(1)'),
 				repeatKnob: el.getElement('.repeatValues > div > div'),
 				offsetKnob: el.getElement('.offsetValues > div > div'),
-				angleKnob: el.getElement('.rotateValues > div > div')
+				rotateKnob: el.getElement('.rotateValues > div > div')
 				};
 			demo.controls[iGenerator] = controls;
 			var dummy = new Drag(el.getElement(controls.repeatKnob), {
@@ -273,7 +273,7 @@ var VoronoiDemo = {
 						demo.updatePermalink();
 						}
 					});
-			dummy = new Drag(el.getElement(controls.angleKnob), {
+			dummy = new Drag(el.getElement(controls.rotateKnob), {
 					snap: 1,
 					limit:{x:[0,0],y:[0,55]},
 					onStart: function(){demo.dragging=true;},
@@ -291,7 +291,7 @@ var VoronoiDemo = {
 			controls.repeaty.addEvent('change',function(){var el=this;handleStepChange(el,iGenerator,'repeaty');});
 			controls.offsetx.addEvent('change', function(){var el=this;handleOffsetChange(el,iGenerator,'offsetx');});
 			controls.offsety.addEvent('change', function(){var el=this;handleOffsetChange(el,iGenerator,'offsety');});
-			controls.angle.addEvent('change', function(){var el=this;handleAngleChange(el,iGenerator,'rotate');});
+			controls.rotate.addEvent('change', function(){var el=this;handleAngleChange(el,iGenerator,'rotate');});
 			});
 		// global controls
 		$('showGrout').addEvent('change',function(){
@@ -481,21 +481,27 @@ var VoronoiDemo = {
 		this.backgroundGenerator = backgroundGenerator;
 		},
 
-	syncTextFields: function(which) {
+	syncTextFields: function(whichGenerator, whichControl) {
 		var generators = this.generators,
 			nGenerators = generators.length,
 			iGenerator, generator, controls;
 		this.hasRotation = false;
 		for (iGenerator=0; iGenerator<nGenerators; iGenerator++) {
 			generator = generators[iGenerator];
-			if (which === undefined || iGenerator === which) {
+			if (whichGenerator === undefined || iGenerator === whichGenerator) {
 				controls = this.controls[iGenerator];
-				controls.color.value = generator.color.rgbToHex();
-				controls.repeatx.value = generator.repeatx;
-				controls.repeaty.value = generator.repeaty;
-				controls.offsetx.value = generator.offsetx.toFixed(3);
-				controls.offsety.value = generator.offsety.toFixed(3);
-				controls.angle.value = generator.rotate.toFixed(3);
+				if (!whichControl || /^color/.test(whichControl)) {
+					controls.color.value = generator.color.rgbToHex();
+					}
+				if (!whichControl || /^repeat/.test(whichControl) ) {
+					controls.repeatx.value = generator.repeatx;
+					controls.repeaty.value = generator.repeaty;
+					}
+				if (!whichControl || /^(offset|rotate)/.test(whichControl) ) {
+					controls.offsetx.value = generator.offsetx.toFixed(3);
+					controls.offsety.value = generator.offsety.toFixed(3);
+					controls.rotate.value = generator.rotate.toFixed(3);
+					}
 				}
 			this.hasRotation = this.hasRotation || generator.rotate;
 			}
@@ -514,7 +520,7 @@ var VoronoiDemo = {
 				knob = this.controls[iGenerator].offsetKnob;
 				knob.style.left = String(Math.floor((generator.offsetx + 0.5) * 50)) + 'px';
 				knob.style.top  = String(Math.floor((generator.offsety + 0.5) * 50)) + 'px';
-				knob = this.controls[iGenerator].angleKnob;
+				knob = this.controls[iGenerator].rotateKnob;
 				knob.style.top  = String(Math.floor((generator.rotate) * 55)) + 'px';
 				}
 			}
@@ -572,7 +578,7 @@ window.addEvent('domready',function(){VoronoiDemo.init();});
 </script>
 </head>
 <body>
-<h1>Javascript implementation of Steven Fortune's algorithm to compute Voronoi diagrams<br/>Demo 3: Fancy tiling</h1>
+<h1>Javascript implementation of Steven Fortune's algorotaterithm to compute Voronoi diagrams<br/>Demo 3: Fancy tiling</h1>
 <div id="divroot">
 <p style="margin-top:0;"><a href="/voronoi/rhill-voronoi.php">&lt; Back to main page</a> | <a href="rhill-voronoi-demo1.php">Demo 1: measuring peformance</a> | <a href="rhill-voronoi-demo2.php">Demo 2: a bit of interactivity</a> | <b>Demo 3: Fancy tiling</b> | <a href="http://www.raymondhill.net/blog/?p=458#comments">Comments</a></p>
 <div class="pane" id="canvasParent">
