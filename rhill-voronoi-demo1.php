@@ -90,10 +90,10 @@ var VoronoiDemo = {
 		// edges
 		ctx.beginPath();
 		ctx.strokeStyle='#000';
-		var edges = this.diagram.edges;
-		var nEdges = edges.length;
-		var edge, v;
-		for (var iEdge=nEdges-1; iEdge>=0; iEdge-=1) {
+		var edges = this.diagram.edges,
+			iEdge = edges.length,
+			edge, v;
+		while (iEdge--) {
 			edge = edges[iEdge];
 			v = edge.va;
 			ctx.moveTo(v.x,v.y);
@@ -104,9 +104,9 @@ var VoronoiDemo = {
 		// sites
 		ctx.beginPath();
 		ctx.fillStyle = '#44f';
-		var sites = this.sites;
-		var nSites = sites.length;
-		for (var iSite=nSites-1; iSite>=0; iSite-=1) {
+		var sites = this.sites,
+			iSite = sites.length;
+		while (iSite--) {
 			v = sites[iSite];
 			ctx.rect(v.x-2/3,v.y-2/3,2,2);
 			}
