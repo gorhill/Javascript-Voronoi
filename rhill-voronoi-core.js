@@ -973,7 +973,7 @@ Voronoi.prototype.addArc = function(site) {
 	// on the left -- except of course when there are no beach section at all on
 	// the beach line, which case was handled above.
 	if (!lArc && rArc) {
-		throw 'Voronoi.addArc(): WTF!?';
+		throw "Voronoi.addArc(): I don't even";
 		}
 
 	// [lArc,rArc] where lArc != rArc
@@ -991,7 +991,7 @@ Voronoi.prototype.addArc = function(site) {
 
 		// an existing transition disappears, meaning a vertex is defined at
 		// the disappearance point
-		var circle = this.circumcircle(lArc.site,site,rArc.site);
+		var circle = this.circumcircleCenter(lArc.site,site,rArc.site);
 		this.setEdgeStartpoint(rArc.edge, lArc.site, rArc.site, new this.Vertex(circle.x,circle.y));
 
 		// two new transitions appear at the new vertex location
@@ -1006,7 +1006,7 @@ Voronoi.prototype.addArc = function(site) {
 		}
 	};
 
-Voronoi.prototype.circumcircle = function(a,b,c) {
+Voronoi.prototype.circumcircleCenter = function(a,b,c) {
 	// http://mathforum.org/library/drmath/view/55002.html
 	// Except that I bring the origin at A to simplify
 	// calculation
@@ -1016,12 +1016,12 @@ Voronoi.prototype.circumcircle = function(a,b,c) {
 		by=b.y-ay,
 		cx=c.x-ax,
 		cy=c.y-ay,
-		d=2*(bx*cy-by*cx), //if (!d) {throw 'Voronoi.circumcircle(): Division by zero.';}
+		d=2*(bx*cy-by*cx),
 		hb=bx*bx+by*by,
 		hc=cx*cx+cy*cy,
 		x=(cy*hb-by*hc)/d,
 		y=(bx*hc-cx*hb)/d;
-	return {x:x+ax,y:y+ay,radius:this.sqrt(x*x+y*y)};
+	return {x:x+ax,y:y+ay};
 	};
 
 Voronoi.prototype.addCircleEvent = function(arc,sweep) {
