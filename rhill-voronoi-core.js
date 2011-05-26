@@ -136,10 +136,7 @@ Voronoi.Vertex object:
   x: the x coordinate.
   y: the y coordinate.
 
-TODO: Get rid of Voronoi.sortHalfedgesCallback() choke point. Rationale: Vertices are
-      defined in a deterministic way, such that they can be added in an orderly way,
-      the tricky part is while an edge is completely unconnected at creation time.
-      Investigate.
+TODO: Identify opportunity for performance improvement
 TODO: Let the user close the Voronoi cells, do not do it automatically. Not only let
       him close the cells, but also allow him to close more than once using a different
       bounding box for the same Voronoi diagram.
@@ -171,10 +168,12 @@ Voronoi.prototype.isNaN = self.isNaN;
 Voronoi.prototype.PI = self.Math.PI;
 Voronoi.prototype.EPSILON = 1e-9;
 Voronoi.prototype.equalWithEpsilon = function(a,b){return this.abs(a-b)<1e-9;};
-Voronoi.prototype.greaterThanWithEpsilon = function(a,b){return (a-b)>1e-9;};
-Voronoi.prototype.greaterThanOrEqualWithEpsilon = function(a,b){return (b-a)<1e-9;};
-Voronoi.prototype.lessThanWithEpsilon = function(a,b){return (b-a)>1e-9;};
-Voronoi.prototype.lessThanOrEqualWithEpsilon = function(a,b){return (a-b)<1e-9;};
+Voronoi.prototype.greaterThanWithEpsilon = function(a,b){return a-b>1e-9;};
+Voronoi.prototype.greaterThanOrEqualWithEpsilon = function(a,b){return b-a<1e-9;};
+Voronoi.prototype.lessThanWithEpsilon = function(a,b){return b-a>1e-9;};
+Voronoi.prototype.lessThanOrEqualWithEpsilon = function(a,b){return a-b<1e-9;};
+Voronoi.prototype.verticesAreEqual = function(a,b) {return this.abs(a.x-b.x)<1e-9 && this.abs(a.y-b.y)<1e-9;};
+
 
 Voronoi.prototype.Beachline = function() {
 	this.reset();
@@ -626,14 +625,77 @@ Voronoi.prototype.Edge = function(lSite,rSite) {
 	this.va = this.vb = undefined;
 	};
 
-Voronoi.prototype.Halfedge = function(site,edge) {
-	this.site = site;
+Voronoi.prototype.Halfedge = function(edge, lSite, rSite) {
+	this.site = lSite;
 	this.edge = edge;
+	// 'angle' is a value to be used for properly sorting the
+	// halfsegments counterclockwise. By convention, we will
+	// use the angle of the perpendicular line to the line defined
+	// by the 'site to the left' to the 'site to the right'.
+	// However, border edges have no 'site to the right': use angle
+	// of perpendicular to halfsegment (the edge should have both
+	// end points defined in such case.)
+	if (rSite) {
+		this.angle = Math.atan2(rSite.y-lSite.y, rSite.x-lSite.x);
+		}
+	else {
+		var va = this.getStartpoint(),
+			vb = this.getEndpoint();
+		this.angle = Math.atan2(vb.x-va.x, va.y-vb.y);
+		}
 	};
 
 Voronoi.prototype.Cell = function(site) {
 	this.site = site;
 	this.halfedges = [];
+	};
+
+// rhill 2011-05-26: Not used, but I keep it around for future
+// performance tests.
+// I tried to use a binary search at insertion time to keep
+// the array sorted on-the-fly (in Cell.addHalfedge()).
+// There was no real benefits in doing so, performance on
+// Firefox 3.6 was improved marginally, while performance on
+// Opera 11 was penalized marginally.
+/*
+Voronoi.prototype.Cell.prototype.addHalfedge = function(o) {
+	var q = this.halfedges,
+		r = q.length;
+	if (r) {
+		var angle = o.angle,
+			l = 0, i;
+		while (l<r) {
+			i = (l+r)>>1;
+			if (angle <= q[i].angle) {l = i+1;}
+			else {r = i;}
+			}
+		q.splice(l,0,o);
+		}
+	else {
+		q.push(o);
+		}
+	};
+*/
+Voronoi.prototype.Cell.prototype.prepare = function() {
+	var halfedges = this.halfedges,
+		iLeft = halfedges.length,
+		iRight;
+	// get rid of unused halfedges
+	while (iLeft) {
+		iRight = iLeft;
+		while (iRight>0 && halfedges[iRight-1].edge.isLineSegment()) {iRight--;}
+		iLeft = iRight;
+		while (iLeft>0 && !halfedges[iLeft-1].edge.isLineSegment()) {iLeft--;}
+		if (iLeft === iRight) {break;}
+		halfedges.splice(iLeft,iRight-iLeft);
+		}
+	// rhill 2011-05-26: I tried to use a binary search at insertion
+	// time to keep the array sorted on-the-fly (in Cell.addHalfedge()).
+	// There was no real benefits in doing so, performance on
+	// Firefox 3.6 was improved marginally, while performance on
+	// Opera 11 was penalized marginally.
+	halfedges.sort(function(a,b){return b.angle-a.angle;});
+	return halfedges.length;
 	};
 
 Voronoi.prototype.Cells = function() {
@@ -654,14 +716,10 @@ Voronoi.prototype.Cells.prototype.removeCell = function(cell) {
 // properties repeated for all instances.
 
 Voronoi.prototype.Edge.prototype.isLineSegment = function() {
-		return this.id !== 0 && Boolean(this.va) && Boolean(this.vb);
+		return this.id && this.va && this.vb;
 		};
 
 Voronoi.prototype.Edge.prototype.idgenerator = 1;
-
-Voronoi.prototype.Halfedge.prototype.isLineSegment = function() {
-		return this.edge.id !== 0 && Boolean(this.edge.va) && Boolean(this.edge.vb);
-		};
 
 Voronoi.prototype.Halfedge.prototype.getStartpoint = function() {
 		return this.edge.lSite === this.site ? this.edge.va : this.edge.vb;
@@ -708,8 +766,9 @@ Voronoi.prototype.createEdge = function(lSite,rSite,va,vb) {
 	if (vb !== undefined) {
 		this.setEdgeEndpoint(edge,lSite,rSite,vb);
 		}
-	this.cells[lSite.voronoiId].halfedges.push(new this.Halfedge(lSite,edge));
-	this.cells[rSite.voronoiId].halfedges.push(new this.Halfedge(rSite,edge));
+	// rhill 2011-05-26: For now use plain Array.push() instead of Cell.addHalfedge();
+	this.cells[lSite.voronoiId].halfedges.push(new this.Halfedge(edge, lSite, rSite));
+	this.cells[rSite.voronoiId].halfedges.push(new this.Halfedge(edge, rSite, lSite));
 	return edge;
 	};
 
@@ -1310,19 +1369,6 @@ Voronoi.prototype.clipEdges = function(bbox) {
 		}
 	};
 
-Voronoi.prototype.verticesAreEqual = function(a,b) {
-	return this.equalWithEpsilon(a.x,b.x) && this.equalWithEpsilon(a.y,b.y);
-	};
-
-// this function is used to sort halfedges counterclockwise
-Voronoi.prototype.sortHalfedgesCallback = function(a,b) {
-	var ava = a.getStartpoint();
-	var avb = a.getEndpoint();
-	var bva = b.getStartpoint();
-	var bvb = b.getEndpoint();
-	return self.Math.atan2(bvb.y-bva.y,bvb.x-bva.x) - self.Math.atan2(avb.y-ava.y,avb.x-ava.x);
-	};
-
 // Close the cells.
 // The cells are bound by the supplied bounding box.
 // Each cell refers to its associated site, and a list
@@ -1345,28 +1391,16 @@ Voronoi.prototype.closeCells = function(bbox) {
 	for (cellid in cells) {
 		cell = cells[cellid];
 		if (!(cell instanceof this.Cell)) {continue;}
-		halfedges = cell.halfedges;
-		iLeft = halfedges.length;
-		// get rid of unused halfedges
-		while (iLeft) {
-			iRight = iLeft;
-			while (iRight>0 && halfedges[iRight-1].isLineSegment()) {iRight--;}
-			iLeft = iRight;
-			while (iLeft>0 && !halfedges[iLeft-1].isLineSegment()) {iLeft--;}
-			if (iLeft === iRight) {break;}
-			halfedges.splice(iLeft,iRight-iLeft);
-			}
-		// remove cell if it has zero halfedges
-		if (halfedges.length === 0) {
+		// trim non well-defined halfedges and sort them counterclockwise
+		if (!cell.prepare()) {
 			cells.removeCell(cell);
 			continue;
 			}
-		// reorder halfedges counterclockwise
-		halfedges.sort(this.sortHalfedgesCallback);
 		// close open cells
 		// step 1: find first 'unclosed' point, if any.
 		// an 'unclosed' point will be the end point of a halfedge which
 		// does not match the start point of the following halfedge
+		halfedges = cell.halfedges;
 		nHalfedges = halfedges.length;
 		// special case: only one site, in which case, the viewport is the cell
 		// ...
@@ -1380,16 +1414,6 @@ Voronoi.prototype.closeCells = function(bbox) {
 				// if we reach this point, cell needs to be closed by walking
 				// counterclockwise along the bounding box until it connects
 				// to next halfedge in the list
-/*
-				// Debugging code to alert of instances of 'unclosable'
-				// polygons
-				if (!this.equalWithEpsilon(startpoint.x,xl) &&
-				    !this.equalWithEpsilon(startpoint.x,xr) &&
-				    !this.equalWithEpsilon(startpoint.y,yt) &&
-				    !this.equalWithEpsilon(startpoint.y,yb)) {
-					debugger;
-					}
-*/
 				va = new this.Vertex(endpoint.x,endpoint.y);
 				// walk downward along left side
 				if (this.equalWithEpsilon(endpoint.x,xl) && this.lessThanWithEpsilon(endpoint.y,yb)) {
@@ -1407,8 +1431,8 @@ Voronoi.prototype.closeCells = function(bbox) {
 				else if (this.equalWithEpsilon(endpoint.y,yt) && this.greaterThanWithEpsilon(endpoint.x,xl)) {
 					vb = new this.Vertex(this.equalWithEpsilon(startpoint.y,yt) ? startpoint.x : xl,yt);
 					}
-				edge = this.createBorderEdge(cell.site,va,vb);
-				halfedges.splice(iLeft+1,0,new this.Halfedge(cell.site,edge));
+				edge = this.createBorderEdge(cell.site, va, vb);
+				halfedges.splice(iLeft+1, 0, new this.Halfedge(edge, cell.site, null));
 				nHalfedges = halfedges.length;
 				}
 			iLeft++;
