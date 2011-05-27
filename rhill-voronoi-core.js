@@ -9,6 +9,7 @@ Steven Fortune's algorithm to compute Voronoi diagrams.
 Copyright (C) 2010 Raymond Hill (https://github.com/gorhill/Javascript-Voronoi)
 
 Licensed under The MIT License
+http://en.wikipedia.org/wiki/MIT_License
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -145,7 +146,7 @@ TODO: Let the user close the Voronoi cells, do not do it automatically. Not only
       bounding box for the same Voronoi diagram.
 */
 
-/*global self */
+/*global Math */
 
 function Voronoi() {
 	this.siteEvents = [];
@@ -158,16 +159,8 @@ function Voronoi() {
 Voronoi.prototype.VOID_EVENT = 0; // Code depends on Boolean(Voronoi.VOID_EVENT) to be false
 Voronoi.prototype.SITE_EVENT = 1;
 Voronoi.prototype.CIRCLE_EVENT = 2;
-Voronoi.prototype.sqrt = self.Math.sqrt;
-Voronoi.prototype.abs = self.Math.abs;
-Voronoi.prototype.floor = self.Math.floor;
-Voronoi.prototype.random = self.Math.random;
-Voronoi.prototype.round = self.Math.round;
-Voronoi.prototype.min = self.Math.min;
-Voronoi.prototype.max = self.Math.max;
-Voronoi.prototype.pow = self.Math.pow;
-Voronoi.prototype.isNaN = self.isNaN;
-Voronoi.prototype.PI = self.Math.PI;
+Voronoi.prototype.sqrt = Math.sqrt;
+Voronoi.prototype.abs = Math.abs;
 Voronoi.prototype.EPSILON = 1e-9;
 Voronoi.prototype.equalWithEpsilon = function(a,b){return this.abs(a-b)<1e-9;};
 Voronoi.prototype.greaterThanWithEpsilon = function(a,b){return a-b>1e-9;};
@@ -175,7 +168,6 @@ Voronoi.prototype.greaterThanOrEqualWithEpsilon = function(a,b){return b-a<1e-9;
 Voronoi.prototype.lessThanWithEpsilon = function(a,b){return b-a>1e-9;};
 Voronoi.prototype.lessThanOrEqualWithEpsilon = function(a,b){return a-b<1e-9;};
 Voronoi.prototype.verticesAreEqual = function(a,b) {return this.abs(a.x-b.x)<1e-9 && this.abs(a.y-b.y)<1e-9;};
-
 
 Voronoi.prototype.Beachline = function() {
 	this.reset();
@@ -474,7 +466,7 @@ Voronoi.prototype.Beachline.prototype.validate = function(root) {
 	if (predecessor) {
 		var prepredecessor = predecessor.previous;
 		if (prepredecessor) {
-			directrix = self.Math.max(root.site.y,predecessor.site.y,prepredecessor.site.y);
+			directrix = Math.max(root.site.y,predecessor.site.y,prepredecessor.site.y);
 			if (root.leftParabolicCut(predecessor.site,directrix) < predecessor.leftParabolicCut(prepredecessor.site,directrix)) {
 				throw 'RBTree.validate(): Binary tree violation';
 				}
@@ -484,7 +476,7 @@ Voronoi.prototype.Beachline.prototype.validate = function(root) {
 	if (successor) {
 		var postsuccessor = successor.next;
 		if (postsuccessor) {
-			directrix = self.Math.max(root.site.y,successor.site.y,postsuccessor.site.y);
+			directrix = Math.max(root.site.y,successor.site.y,postsuccessor.site.y);
 			if (successor.leftParabolicCut(root.site,directrix) > postsuccessor.leftParabolicCut(successor.site,directrix)) {
 				throw 'RBTree.validate(): Binary tree violation';
 				}
@@ -537,7 +529,7 @@ Voronoi.prototype.Beachline.prototype.Beachsection = function(site) {
 	this.parent = this.left = this.right = this.previous = this.next = null;
 	};
 
-Voronoi.prototype.Beachline.prototype.Beachsection.prototype.sqrt = self.Math.sqrt;
+Voronoi.prototype.Beachline.prototype.Beachsection.prototype.sqrt = Math.sqrt;
 
 // given parabola 'site', return the intersection with parabola 'left'
 // immediately to the left of x
@@ -604,7 +596,6 @@ Voronoi.prototype.Vertex = function(x,y) {
 	};
 
 Voronoi.prototype.Edge = function(lSite,rSite) {
-	this.id = this.constructor.prototype.idgenerator++;
 	this.lSite = lSite;
 	this.rSite = rSite;
 	this.va = this.vb = undefined;
@@ -640,7 +631,7 @@ Voronoi.prototype.Cell.prototype.prepare = function() {
 		iHalfedge = halfedges.length;
 	// get rid of unused halfedges
 	// rhill 2011-05-27: Keep it simple, no point here in trying
-	// to be fancy: dangling edges are a minority.
+	// to be fancy: dangling edges are a typically a minority.
 	while (iHalfedge--) {
 		if (!halfedges[iHalfedge].edge.isLineSegment()) {
 			halfedges.splice(iHalfedge,1);
@@ -659,10 +650,8 @@ Voronoi.prototype.Cell.prototype.prepare = function() {
 // properties repeated for all instances.
 
 Voronoi.prototype.Edge.prototype.isLineSegment = function() {
-		return this.id && this.va && this.vb;
+		return this.va && this.vb;
 		};
-
-Voronoi.prototype.Edge.prototype.idgenerator = 1;
 
 Voronoi.prototype.Halfedge.prototype.getStartpoint = function() {
 		return this.edge.lSite === this.site ? this.edge.va : this.edge.vb;
@@ -720,10 +709,6 @@ Voronoi.prototype.createBorderEdge = function(lSite,va,vb) {
 	edge.vb = vb;
 	this.edges.push(edge);
 	return edge;
-	};
-
-Voronoi.prototype.destroyEdge = function(edge) {
-	edge.id = 0;
 	};
 
 Voronoi.prototype.setEdgeStartpoint = function(edge, lSite, rSite, vertex) {
@@ -1324,7 +1309,7 @@ Voronoi.prototype.clipEdges = function(bbox) {
 	while (iEdge--) {
 		edge = edges[iEdge];
 		if (!this.connectEdge(edge,bbox) || !this.clipEdge(edge,bbox) || this.verticesAreEqual(edge.va,edge.vb)) {
-			this.destroyEdge(edge);
+			edge.va = edge.vb = null;
 			edges.splice(iEdge,1);
 			}
 		}
@@ -1344,7 +1329,7 @@ Voronoi.prototype.closeCells = function(bbox) {
 		yb = bbox.yb,
 		cells = this.cells,
 		iCell = cells.length,
-		cellid, cell,
+		cell,
 		iLeft, iRight,
 		halfedges, nHalfedges,
 		edge,
@@ -1411,7 +1396,8 @@ Voronoi.prototype.compute = function(sites, bbox) {
 
 	// Initialize array of Voronoi cells
 	this.cells = [];
-	var iSite = sites.length, site;
+	var iSite = sites.length,
+		site;
 	while (iSite--) {
 		site = sites[iSite];
 		site.voronoiId = iSite;
@@ -1432,7 +1418,7 @@ Voronoi.prototype.compute = function(sites, bbox) {
 		});
 
 	// process event queue
-	var event, site,
+	var event,
 		xsitex = Number.MIN_VALUE,
 		xsitey = Number.MIN_VALUE;
 	for (;;) {
