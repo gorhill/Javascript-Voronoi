@@ -1,5 +1,6 @@
 A Javascript implementation of Steven J. Fortune's algorithm to
-efficiently compute Voronoi diagrams.
+efficiently compute Voronoi diagrams. The Voronoi object's purpose is
+to solely compute a Voronoi diagram, it contains rendering code.
 
 Files
 -----
@@ -12,12 +13,6 @@ rhill-voronoi-demo1.php
 rhill-voronoi-demo2.php
 rhill-voronoi-demo3.php
   Demo pages to demonstrate usage of the Voronoi object.
-
-rhill-voronoi.php
-  Demo page, shows the inner working of Fortune's algorithm
-rhill-voronoi.js
-  A modified implementation of rhill-voronoi-core.js, companion
-  script of rhill-voronoi.php. 
 
 excanvas/*
   Used by demo pages
@@ -50,8 +45,7 @@ Roughly:
   // a 'vertex' is an object exhibiting 'x' and 'y' properties. The
   // Voronoi object will add a unique 'voronoiId' property to all
   // vertices. The 'voronoiId' can be used as a key to lookup the
-  // associated cell in 'diagram.cells'. A 'voronoiId' equals to 0
-  // means there exists no associated Voronoi cell.
+  // associated cell in 'diagram.cells'.
   var diagram = voronoi.compute([ /* an array of vertices */ ], bbox);
 
 The returned 'diagram' variable is a Javascript object with the
@@ -62,9 +56,9 @@ following properties:
     Voronoi diagram.
 
   diagram.cells:
-    A dictionary of Voronoi.Cell objects making up the Voronoi diagram.
-    The Voronoi.Cell objects in the dictionary are keyed on their
-    associated Voronoi.Site's unique id.
+    An array of Voronoi.Cell objects making up the Voronoi diagram. A Cell object
+    might have an empty array of halfedges, meaning no Voronoi cell could be computed for a
+    particular cell.
 
   diagram.execTime:
     The time it took to compute the Voronoi diagram, in milliseconds.
@@ -75,18 +69,12 @@ Objects:
     The Voronoi object which computes a Voronoi diagram.
 
   Voronoi.Edge:
-    id: a unique id identifying this Voronoi edge.
     lSite: the Voronoi.Site object at the left of this Voronoi.Edge object.
     rSite: the Voronoi.Site object at the right of this Voronoi.Edge object (can be null).
     va: the Voronoi.Vertex object defining the start point (relative to the Voronoi.Site
       on the left) of this Voronoi.Edge object.
     vb: the Voronoi.Vertex object defining the end point (relative to Voronoi.Site on
       the left) of this Voronoi.Edge object.
-
-  Voronoi.Cells:
-    A collection of Voronoi.Cell objects, keyed on the id of the
-    associated Voronoi.Site object.
-    numCells: the number of Voronoi.Cell objects in the collection.
 
   Voronoi.Cell:
     site: the Voronoi.Site object associated with the Voronoi cell.
@@ -104,16 +92,17 @@ Objects:
   Voronoi.Vertex:
     x: the x coordinate.
     y: the y coordinate.
-    Really can be any object exhibiting 'x' and 'y' property
-    members.
+    Really can be any object as long as it exhibits 'x' and 'y' property members.
 
 
 License
 -------
 
-Copyright (c) 2010 Raymond Hill (http://www.raymondhill.net/blog/?p=9)
+Copyright (c) 2010,2011 Raymond Hill
+https://github.com/gorhill/Javascript-Voronoi
 
 Licensed under The MIT License
+http://en.wikipedia.org/wiki/MIT_License
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
