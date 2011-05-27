@@ -41,7 +41,7 @@ _gaq.push(['_trackPageview']);
 <p style="margin-top:0;"><a href="/">&lt; Home page of Raymond Hill</a> | <a href="rhill-voronoi-demo1.php">Demo 1: measuring peformance</a> | <a href="rhill-voronoi-demo2.php">Demo 2: a bit of interactivity</a> | <a href="rhill-voronoi-demo3.php">Demo 3: Fancy tiling</a> | <a href="http://www.raymondhill.net/blog/?p=458#comments">Comments</a></p>
 <h4 class="divhdr">Intro</h4>
 <div class="divinfo" id="voronoiIntro">
-<p>See my <a href="http://www.raymondhill.net/blog/?p=458">blog post</a> regarding this page.</p>
+<p>See my <a href="http://www.raymondhill.net/blog/?p=458">blog post</a> regarding this page. This page uses an out of date version (and customized to serve as a tutorial of Fortune's algorithm) of the Javascript Voronoi object. However the demo pages listed above uses the latest version.</p>
 </div>
 <h4 class="divhdr">Sites generator <span id="voronoiGeneratorCollapse">&#9653;</span></h4>
 <div class="divinfo" id="voronoiGenerator">
