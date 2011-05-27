@@ -577,7 +577,7 @@ Voronoi.prototype.Beachline.prototype.Beachsection.prototype.leftParabolicCut = 
 	};
 
 Voronoi.prototype.Beachline.prototype.Beachsection.prototype.isCollapsing = function() {
-	return this.circleEvent !== undefined && this.circleEvent.type;
+	return this.circleEvent && this.circleEvent.type;
 	};
 
 // Red-Black tree code
@@ -637,16 +637,14 @@ Voronoi.prototype.Cell = function(site) {
 
 Voronoi.prototype.Cell.prototype.prepare = function() {
 	var halfedges = this.halfedges,
-		iLeft = halfedges.length,
-		iRight;
+		iHalfedge = halfedges.length;
 	// get rid of unused halfedges
-	while (iLeft) {
-		iRight = iLeft;
-		while (iRight>0 && halfedges[iRight-1].edge.isLineSegment()) {iRight--;}
-		iLeft = iRight;
-		while (iLeft>0 && !halfedges[iLeft-1].edge.isLineSegment()) {iLeft--;}
-		if (iLeft === iRight) {break;}
-		halfedges.splice(iLeft,iRight-iLeft);
+	// rhill 2011-05-27: Keep it simple, no point here in trying
+	// to be fancy: dangling edges are a minority.
+	while (iHalfedge--) {
+		if (!halfedges[iHalfedge].edge.isLineSegment()) {
+			halfedges.splice(iHalfedge,1);
+			}
 		}
 	// rhill 2011-05-26: I tried to use a binary search at insertion
 	// time to keep the array sorted on-the-fly (in Cell.addHalfedge()).
@@ -705,10 +703,10 @@ Voronoi.prototype.rightBreakPoint = function(arc, sweep) {
 Voronoi.prototype.createEdge = function(lSite, rSite, va, vb) {
 	var edge = new this.Edge(lSite,rSite);
 	this.edges.push(edge);
-	if (va !== undefined) {
+	if (va) {
 		this.setEdgeStartpoint(edge,lSite,rSite,va);
 		}
-	if (vb !== undefined) {
+	if (vb) {
 		this.setEdgeEndpoint(edge,lSite,rSite,vb);
 		}
 	this.cells[lSite.voronoiId].halfedges.push(new this.Halfedge(edge, lSite, rSite));
@@ -729,7 +727,7 @@ Voronoi.prototype.destroyEdge = function(edge) {
 	};
 
 Voronoi.prototype.setEdgeStartpoint = function(edge, lSite, rSite, vertex) {
-	if (edge.va === undefined && edge.vb === undefined) {
+	if (!edge.va && !edge.vb) {
 		edge.va = vertex;
 		edge.lSite = lSite;
 		edge.rSite = rSite;
@@ -1173,7 +1171,7 @@ Voronoi.prototype.connectEdge = function(edge,bbox) {
 		if (f.x < xl || f.x >= xr) {return false;}
 		// downward
 		if (lSite.x > rSite.x) {
-			if (va === undefined) {
+			if (!va) {
 				va = new this.Vertex(f.x,yt);
 				}
 			else if (va.y >= yb) {
@@ -1183,7 +1181,7 @@ Voronoi.prototype.connectEdge = function(edge,bbox) {
 			}
 		// upward
 		else {
-			if (va === undefined) {
+			if (!va) {
 				va = new this.Vertex(f.x,yb);
 				}
 			else if (va.y < yt) {
@@ -1197,7 +1195,7 @@ Voronoi.prototype.connectEdge = function(edge,bbox) {
 	else if (f.m < 1) {
 		// rightward
 		if (lSite.y < rSite.y) {
-			if (va === undefined) {
+			if (!va) {
 				va = new this.Vertex(xl,f.m*xl+f.b);
 				}
 			else if (va.x >= xr) {
@@ -1207,7 +1205,7 @@ Voronoi.prototype.connectEdge = function(edge,bbox) {
 			}
 		// leftward
 		else {
-			if (va === undefined) {
+			if (!va) {
 				va = new this.Vertex(xr,f.m*xr+f.b);
 				}
 			else if (va.x < xl) {
@@ -1221,7 +1219,7 @@ Voronoi.prototype.connectEdge = function(edge,bbox) {
 	else {
 		// downward
 		if (lSite.x > rSite.x) {
-			if (va === undefined) {
+			if (!va) {
 				va = new this.Vertex((yt-f.b)/f.m,yt);
 				}
 			else if (va.y >= yb) {
@@ -1231,7 +1229,7 @@ Voronoi.prototype.connectEdge = function(edge,bbox) {
 			}
 		// upward
 		else {
-			if (va === undefined) {
+			if (!va) {
 				va = new this.Vertex((yb-f.b)/f.m,yb);
 				}
 			else if (va.y < yt) {
