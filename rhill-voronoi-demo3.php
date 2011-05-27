@@ -6,7 +6,7 @@ body {font-family:tahoma,verdana,arial;font-size:13px;margin:0;padding:0}
 body > div {margin-left:4px;margin-right:4px;}
 body > div > div {margin:0;border:1px solid #ccc;border-top:0;padding:4px;}
 div.pane {margin:0;border:0;padding:0;display:inline-block;vertical-align:top}
-h1 {margin:0 0 0.5em 0;padding: 4px 5em 4px 4px;font:bold 20px sans-serif;background-color:#c9d7f1;}
+h1 {margin:0 0 0.5em 0;padding: 4px 5em 4px 4px;font:bold large sans-serif;background-color:#c9d7f1;}
 h4 {font-size:14px;margin:0;border:0;border-bottom:solid 1px #c9d7f1;padding:2px;background-color:#e5ecf9;}
 h4 > span {cursor:pointer}
 #voronoiGenerators {font-size:12px}
@@ -342,36 +342,38 @@ var VoronoiDemo = {
 		ctx.lineWidth = 0.5;
 		ctx.strokeStyle = '#888';
 		var cells = this.diagram.cells,
-			cellid, cell,
+			iCell = cells.length,
+			cell,
 			halfedges, nHalfedges, iHalfedge, v,
 			showGrout = !this.dragging && this.showGrout,
 			showSites = this.showSites,
 			mustFill;
-		for (cellid in cells) {
-			cell = cells[cellid];
-			if (!(cell instanceof Voronoi.prototype.Cell)) {continue;}
-			mustFill = !backgroundGenerator || backgroundGenerator !== cell.site.generator;
-			if (showGrout || mustFill) {
-				halfedges = cell.halfedges;
-				nHalfedges = halfedges.length;
-				v = halfedges[0].getStartpoint();
-				ctx.beginPath();
-				ctx.moveTo(v.x,v.y);
-				for (iHalfedge=0; iHalfedge<nHalfedges; iHalfedge++) {
-					v = halfedges[iHalfedge].getEndpoint();
-					ctx.lineTo(v.x,v.y);
+		while (iCell--) {
+			cell = cells[iCell];
+			halfedges = cell.halfedges;
+			nHalfedges = halfedges.length;
+			if (nHalfedges) {
+				mustFill = !backgroundGenerator || backgroundGenerator !== cell.site.generator;
+				if (showGrout || mustFill) {
+					v = halfedges[0].getStartpoint();
+					ctx.beginPath();
+					ctx.moveTo(v.x,v.y);
+					for (iHalfedge=0; iHalfedge<nHalfedges; iHalfedge++) {
+						v = halfedges[iHalfedge].getEndpoint();
+						ctx.lineTo(v.x,v.y);
+						}
+					if (mustFill) {
+						ctx.fillStyle = cell.site.color.rgbToHex();
+						ctx.fill();
+						}
+					if (showGrout) {
+						ctx.stroke();
+						}
 					}
-				if (mustFill) {
-					ctx.fillStyle = cell.site.color.rgbToHex();
-					ctx.fill();
+				if (showSites) {
+					ctx.fillStyle = 'black';
+					ctx.fillRect(cell.site.x-0.5,cell.site.y-0.5,1.5,1.5);
 					}
-				if (showGrout) {
-					ctx.stroke();
-					}
-				}
-			if (showSites) {
-				ctx.fillStyle = 'black';
-				ctx.fillRect(cell.site.x-0.5,cell.site.y-0.5,1.5,1.5);
 				}
 			}
 		ctx.restore();
