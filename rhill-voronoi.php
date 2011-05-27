@@ -10,7 +10,7 @@
 body {font-family:tahoma,verdana,arial;font-size:13px;margin:0;padding:0}
 body > div {margin-left:4px;margin-right:4px;}
 body > div > div {margin:0;border:1px solid #ccc;border-top:0;padding:4px;}
-h1 {margin:0 0 0.5em 0;padding: 4px 5em 4px 4px;font:bold 20px sans-serif;background-color:#c9d7f1;}
+h1 {margin:0 0 0.5em 0;padding: 4px 5em 4px 4px;font:bold large sans-serif;background-color:#c9d7f1;}
 h4 {font-size:14px;margin:0.5em 0 0 0;border:0;border-bottom:solid 1px #c9d7f1;padding:2px;background-color:#e5ecf9;}
 h4 > span {cursor:pointer}
 textarea {font-size:11px;color:gray}
