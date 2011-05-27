@@ -155,7 +155,7 @@ function Voronoi() {
 	this.cells = null;
 	}
 
-Voronoi.prototype.VOID_EVENT = 0;
+Voronoi.prototype.VOID_EVENT = 0; // Code depends on Boolean(Voronoi.VOID_EVENT) to be false
 Voronoi.prototype.SITE_EVENT = 1;
 Voronoi.prototype.CIRCLE_EVENT = 2;
 Voronoi.prototype.sqrt = self.Math.sqrt;
@@ -188,7 +188,8 @@ Voronoi.prototype.Beachline.prototype.reset = function() {
 
 // Red-Black tree code
 Voronoi.prototype.Beachline.prototype.insertSuccessor = function(node, successor) {
-	var parent, grandpa, uncle;
+	this.numBeachsections++;
+	var parent;
 	if (node) {
 		// >>> rhill 2011-05-27: Performance: cache previous/next nodes
 		successor.previous = node;
@@ -219,6 +220,7 @@ Voronoi.prototype.Beachline.prototype.insertSuccessor = function(node, successor
 	// Fixup the modified tree by recoloring nodes and performing
 	// rotations (2 at most) hence the red-black tree properties are
 	// preserved.
+	var grandpa, uncle;
 	node = successor;
 	while (parent && parent.isRed) {
 		grandpa = parent.parent;
@@ -263,11 +265,11 @@ Voronoi.prototype.Beachline.prototype.insertSuccessor = function(node, successor
 		parent = node.parent;
 		}
 	this.root.isRed = false;
-	this.numBeachsections++;
 	};
 
 // Red-Black tree code
 Voronoi.prototype.Beachline.prototype.remove = function(node) {
+	this.numBeachsections--;
 	// >>> rhill 2011-05-27: Performance: cache previous/next nodes
 	if (node.next) {
 		node.next.previous = node.previous;
@@ -394,7 +396,6 @@ Voronoi.prototype.Beachline.prototype.remove = function(node) {
 		parent = parent.parent;
 	} while (!node.isRed);
 	if (node) {node.isRed = false;}
-	this.numBeachsections--;
 	};
 
 // Red-Black tree code
@@ -1049,35 +1050,33 @@ Voronoi.prototype.queueSanitize = function() {
 	// the circle events queue from void events.
 	// currently, I arbitrarily set the treshold at more than twice
 	// the number of beach sections on the beachline.
-	// also, we want to splice from right to left to minimize the size
-	// of memory moves.
+	// Important: VOID_EVENT must be defined so that Boolean(VOID_EVENT)
+	// is false.
+	//
+	// rhill 2011-05-27: splice() from start, as the farther a circle
+	// event is from the sweep line, the more likely it has been voided.
 	var q = this.circEvents,
-		iRight = q.length;
-	if (!iRight) {return;}
-	// remove trailing void events only
-	var iLeft = iRight;
-	while (iLeft && q[iLeft-1].type === this.VOID_EVENT) {iLeft--;}
-	var nEvents = iRight-iLeft;
-	if (nEvents) {
-		q.splice(iLeft,nEvents);
-		}
-	// remove all void events if queue grew too large
-	var nArcs = this.beachline.numBeachsections;
-	if (q.length < nArcs*2) {return;}
+		qlen = q.length,
+		nArcs = this.beachline.numBeachsections;
+	if (qlen < nArcs*2) {return;}
+	var iLeft = 0, iRight = 0;
+	// move to first non-void event
+	while (iRight<qlen && !q[iRight].type) {iRight++;}
+	q.splice(iLeft, iRight-iLeft);
+	qlen = q.length;
 	while (true) {
-		iRight = iLeft-1;
-		// find a right-most void event
-		while (iRight>0 && q[iRight-1].type !== this.VOID_EVENT) {iRight--;}
-		if (iRight<=0) {break;}
-		// find a right-most non-void event immediately to the left of iRight
-		iLeft = iRight-1;
-		while (iLeft>0 && q[iLeft-1].type === this.VOID_EVENT) {iLeft--;}
-		nEvents = iRight-iLeft;
-		q.splice(iLeft,nEvents);
+		// skip non-void events
+		while (iLeft<qlen && q[iLeft].type) {iLeft++;}
+		if (iLeft===qlen) {break;}
+		// find a left-most non-void event immediately to the right of iLeft
+		iRight = iLeft+1;
+		while (iRight<qlen && !q[iRight].type) {iRight++;}
+		q.splice(iLeft, iRight-iLeft);
+		qlen = q.length;
 		// abort if queue has gotten small enough, this allow
 		// to avoid having to go through the whole array, most
 		// circle events are added toward the end of the queue
-		if (q.length < nArcs) {return;}
+		if (qlen < nArcs) {return;}
 		}
 	};
 
