@@ -6,7 +6,7 @@ Date: May 26, 2011
 Description: This is my personal Javascript implementation of
 Steven Fortune's algorithm to compute Voronoi diagrams.
 
-Copyright (C) 2010 Raymond Hill
+Copyright (C) 2010,2011 Raymond Hill
 https://github.com/gorhill/Javascript-Voronoi
 
 Licensed under The MIT License
@@ -113,7 +113,6 @@ Return value:
   result.execTime = the time it took to compute the Voronoi diagram, in milliseconds.
 
 Voronoi.Edge object:
-  id: a unique id identifying this Voronoi edge.
   lSite: the Voronoi.Site object at the left of this Voronoi.Edge object.
   rSite: the Voronoi.Site object at the right of this Voronoi.Edge object (can be null).
   va: the Voronoi.Vertex object defining the start point (relative to the Voronoi.Site
@@ -449,11 +448,12 @@ Voronoi.prototype.Beachline.prototype.rotateRight = function(node) {
 //  function, we can be confident that the algorithm works, provided we
 //  slam it with enough data into a big enough tree (too large of a case
 //  to test by hand)."
+/*
 Voronoi.prototype.Beachline.prototype.validate = function(root) {
 	if (!root) {return 1;}
 	var left = root.left,
 		right = root.right;
-	/* Consecutive red links */
+	// Consecutive red links
 	if (root.isRed) {
 		if ((left && left.isRed) || (right && right.isRed)) {
 			throw 'RBTree.validate(): Red violation';
@@ -462,7 +462,7 @@ Voronoi.prototype.Beachline.prototype.validate = function(root) {
 	var lh = this.validate(left);
 	var rh = this.validate(right);
 	var directrix;
-	/* Invalid binary search tree */
+	// Invalid binary search tree
 	var predecessor = root.previous;
 	if (predecessor) {
 		var prepredecessor = predecessor.previous;
@@ -483,18 +483,19 @@ Voronoi.prototype.Beachline.prototype.validate = function(root) {
 				}
 			}
 		}
-	/* Black height mismatch */
+	// Black height mismatch
 	if (lh !== 0 && rh !== 0 && lh !== rh) {
 		throw 'RBTree.validate(): Black violation';
 		}
-	/* Only count black links */
+	// Only count black links
 	if (lh !== 0 && rh !== 0) {
 		return root.isRed ? lh : lh+1;
 		}
 	return 0;
 	};
-
+*/
 // For debugging purpose only:
+/*
 Voronoi.prototype.Beachline.prototype.dump = function(sweep) {
 	console.log('Beachline: sweep at '+sweep.toFixed(3));
 	var node = this.root.getFirst();
@@ -516,6 +517,7 @@ Voronoi.prototype.Beachline.prototype.dump = function(sweep) {
 		}
 	this.validate(this.root);
 	};
+*/
 
 // Beachsection object
 Voronoi.prototype.Beachline.prototype.Beachsection = function(site) {
@@ -534,26 +536,61 @@ Voronoi.prototype.Beachline.prototype.Beachsection.prototype.sqrt = Math.sqrt;
 
 // given parabola 'site', return the intersection with parabola 'left'
 // immediately to the left of x
-Voronoi.prototype.Beachline.prototype.Beachsection.prototype._leftParabolicCut = function(site,lSite,directrix) {
-	// change code below at your own risk:
-	// care has been taken to reduce errors due to
-	// computers' finite arithmetic precision.
-	// maybe can still be improved, will see if any
-	// more of this kind of errors pop up again
+Voronoi.prototype.Beachline.prototype.Beachsection.prototype._leftParabolicCut = function(site, lSite, directrix) {
+	// http://en.wikipedia.org/wiki/Parabola
+	// http://en.wikipedia.org/wiki/Quadratic_equation
+	// h1 = x1,
+	// k1 = (y1+directrix)/2,
+	// h2 = x2,
+	// k2 = (y2+directrix)/2,
+	// p1 = k1-directrix,
+	// a1 = 1/(4*p1),
+	// b1 = -h1/(2*p1),
+	// c1 = h1*h1/(4*p1)+k1,
+	// p2 = k2-directrix,
+	// a2 = 1/(4*p2),
+	// b2 = -h2/(2*p2),
+	// c2 = h2*h2/(4*p2)+k2,
+	// x = (-(b2-b1) + Math.sqrt((b2-b1)*(b2-b1) - 4*(a2-a1)*(c2-c1))) / (2*(a2-a1))
+	// When x1 become the x-origin:
+	// h1 = 0,
+	// k1 = (y1+directrix)/2,
+	// h2 = x2-x1,
+	// k2 = (y2+directrix)/2,
+	// p1 = k1-directrix,
+	// a1 = 1/(4*p1),
+	// b1 = 0,
+	// c1 = k1,
+	// p2 = k2-directrix,
+	// a2 = 1/(4*p2),
+	// b2 = -h2/(2*p2),
+	// c2 = h2*h2/(4*p2)+k2,
+	// x = (-b2 + Math.sqrt(b2*b2 - 4*(a2-a1)*(c2-k1))) / (2*(a2-a1)) + x1
+
+	// change code below at your own risk: care has been taken to
+	// reduce errors due to computers' finite arithmetic precision.
+	// Maybe can still be improved, will see if any more of this
+	// kind of errors pop up again.
 	var rfocx = site.x,
-		rfocy = site.y;
+		rfocy = site.y,
+		pby2 = rfocy-directrix;
 	// parabola in degenerate case where focus is on directrix
-	if (rfocy === directrix) {return rfocx;}
+	if (!pby2) {
+		return rfocx;
+		}
 	var lfocx = lSite.x,
-		lfocy = lSite.y;
+		lfocy = lSite.y,
+		plby2 = lfocy-directrix;
 	// parabola in degenerate case where focus is on directrix
-	if (lfocy === directrix) {return lfocx;}
+	if (!plby2) {
+		return lfocx;
+		}
 	// both parabolas have same distance to directrix, thus break point is midway
-	if (rfocy === lfocy) {return (rfocx+lfocx)/2;}
+	if (rfocy === lfocy) {
+		return (rfocx+lfocx)/2;
+		}
 	// calculate break point the normal way
-	var pby2 = rfocy-directrix,
-		plby2 = lfocy-directrix,
-		hl = lfocx-rfocx,
+	var	hl = lfocx-rfocx,
 		aby2 = 1/pby2-1/plby2,
 		b = hl/plby2;
 	return (-b+this.sqrt(b*b-2*aby2*(hl*hl/(-2*plby2)-lfocy+plby2/2+rfocy-pby2/2)))/aby2+rfocx;
@@ -629,12 +666,14 @@ Voronoi.prototype.Cell = function(site) {
 
 Voronoi.prototype.Cell.prototype.prepare = function() {
 	var halfedges = this.halfedges,
-		iHalfedge = halfedges.length;
+		iHalfedge = halfedges.length,
+		edge;
 	// get rid of unused halfedges
 	// rhill 2011-05-27: Keep it simple, no point here in trying
 	// to be fancy: dangling edges are a typically a minority.
 	while (iHalfedge--) {
-		if (!halfedges[iHalfedge].edge.isLineSegment()) {
+		edge = halfedges[iHalfedge].edge;
+		if (!edge.vb || !edge.va) {
 			halfedges.splice(iHalfedge,1);
 			}
 		}
@@ -669,8 +708,6 @@ Voronoi.prototype.Halfedge.prototype.getEndpoint = function() {
 // calculate the left break point of a particular beach section,
 // given a particular sweep line
 Voronoi.prototype.leftBreakPoint = function(arc, sweep) {
-	var site = arc.site;
-	if (site.y === sweep) {return site.x;}
 	var lArc = arc.previous;
 	if (!lArc) {return -Infinity;}
 	return arc.leftParabolicCut(lArc.site, sweep);
@@ -733,7 +770,6 @@ Voronoi.prototype.setEdgeEndpoint = function(edge, lSite, rSite, vertex) {
 Voronoi.prototype.removeArc = function(event) {
 	var x = event.x,
 		y = event.ycenter,
-		directrix = event.y,
 		disappearingTransitions = [event.arc];
 	// there could be more than one empty arc at the deletion point, this
 	// happens when more than two edges are linked by the same vertex,
@@ -745,7 +781,7 @@ Voronoi.prototype.removeArc = function(event) {
 	// on their left/right side.
 	// look left
 	var lArc = event.arc.previous;
-	while (this.equalWithEpsilon(x,this.leftBreakPoint(lArc,directrix)) ) {
+	while (lArc.circleEvent && this.abs(x-lArc.circleEvent.x)<1e-9 && this.abs(y-lArc.circleEvent.ycenter)<1e-9) {
 		disappearingTransitions.unshift(lArc);
 		this.voidCircleEvent(lArc);
 		lArc = lArc.previous;
@@ -758,7 +794,7 @@ Voronoi.prototype.removeArc = function(event) {
 	this.voidCircleEvent(lArc);
 	// look right
 	var rArc = event.arc.next;
-	while (this.equalWithEpsilon(x,this.rightBreakPoint(rArc,directrix))) {
+	while (rArc.circleEvent && this.abs(x-rArc.circleEvent.x)<1e-9 && this.abs(y-rArc.circleEvent.ycenter)<1e-9) {
 		disappearingTransitions.push(rArc);
 		this.voidCircleEvent(rArc);
 		rArc = rArc.next;
@@ -775,7 +811,7 @@ Voronoi.prototype.removeArc = function(event) {
 	for (iArc=1; iArc<nArcs; iArc++) {
 		rArc = disappearingTransitions[iArc];
 		lArc = disappearingTransitions[iArc-1];
-		this.setEdgeStartpoint(rArc.edge,lArc.site,rArc.site,new this.Vertex(x,y));
+		this.setEdgeStartpoint(rArc.edge, lArc.site, rArc.site, new this.Vertex(x,y));
 		}
 
 	// removed collapsed beach sections from beachline.
@@ -792,7 +828,7 @@ Voronoi.prototype.removeArc = function(event) {
 	// on the left)
 	lArc = disappearingTransitions[0];
 	rArc = disappearingTransitions[nArcs-1];
-	rArc.edge = this.createEdge(lArc.site,rArc.site,undefined,new this.Vertex(x,y));
+	rArc.edge = this.createEdge(lArc.site, rArc.site, undefined, new this.Vertex(x,y));
 
 	// create circle events if any for beach sections left in the beachline
 	// adjacent to collapsed sections
@@ -872,7 +908,7 @@ Voronoi.prototype.addArc = function(site) {
 
 		// since we have a new transition between two beach sections,
 		// a new edge is born
-		newArc.edge = rArc.edge = this.createEdge(lArc.site,newArc.site);
+		newArc.edge = rArc.edge = this.createEdge(lArc.site, newArc.site);
 
 		// check whether the left and right beach sections are collapsing
 		// and if so create circle events, to handle the point of collapse.
