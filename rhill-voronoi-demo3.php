@@ -23,8 +23,8 @@ div.repeatValues > div,div.offsetValues > div,div.rotateValues > div {border:1px
 div.repeatValues > div,div.offsetValues > div {width:60px}
 div.rotateValues > div {width:25px}
 div.repeatValues > div > div,div.offsetValues > div > div,div.rotateValues > div > div {border:0;position:absolute;left:0;top:0}
-div.repeatValues > div > div,div.offsetValues > div > div {width:10px;height:10px}
-div.rotateValues > div > div {width:25px;height:5px}
+div.repeatValues > div > div,div.offsetValues > div > div {width:10px;height:10px;background:url('knob-dragger.png') no-repeat}
+div.rotateValues > div > div {width:25px;height:5px;background:url('knob-slider.png') no-repeat}
 div.rotateValues > input {width:25px;}
 #canvasParent {margin-top:0;margin-bottom:1em;padding:0;border:0}
 #voronoiCode {font:11px monospace;overflow:auto;color:gray;}
@@ -35,7 +35,7 @@ div.rotateValues > input {width:25px;}
 <meta name="Keywords" lang="en" content="voronoi, fortune, javascript, raymond hill"/>
 <script type="text/javascript" src="mootools/mootools-core-1.3.2.js"></script>
 <script type="text/javascript" src="mootools/mootools-more-1.3.2.1.js"></script>
-<!--[if lte IE8]>
+<!--[if lte IE 8]>
 	<script type="text/javascript" src="excanvas/excanvas.compiled.js"></script>
 	<![endif]-->
 <script type="text/javascript" src="rhill-voronoi-core.js"></script>
@@ -176,7 +176,7 @@ var VoronoiDemo = {
 				demo.syncFields(iGenerator);
 				demo.updatePermalink();
 				};
-		var handleValueChange = function(iGenerator,member,value) {
+		var handleValueChange = function(iGenerator, member, value) {
 				if (isNaN(value)) {value=0;}
 				var generator = demo.generators[iGenerator];
 				generator[member] = value;
@@ -286,12 +286,12 @@ var VoronoiDemo = {
 						demo.updatePermalink();
 						}
 					});
-			controls.color.addEvent('change',function(){var el=this;handleColorChange(iGenerator, el.value);});
-			controls.repeatx.addEvent('change',function(){var el=this;handleStepChange(el,iGenerator,'repeatx');});
-			controls.repeaty.addEvent('change',function(){var el=this;handleStepChange(el,iGenerator,'repeaty');});
-			controls.offsetx.addEvent('change', function(){var el=this;handleOffsetChange(el,iGenerator,'offsetx');});
-			controls.offsety.addEvent('change', function(){var el=this;handleOffsetChange(el,iGenerator,'offsety');});
-			controls.rotate.addEvent('change', function(){var el=this;handleAngleChange(el,iGenerator,'rotate');});
+			controls.color.addEvent('change',function(){handleColorChange(iGenerator,this.value);});
+			controls.repeatx.addEvent('change',function(){handleStepChange(this,iGenerator,'repeatx');});
+			controls.repeaty.addEvent('change',function(){handleStepChange(this,iGenerator,'repeaty');});
+			controls.offsetx.addEvent('change', function(){handleOffsetChange(this,iGenerator,'offsetx');});
+			controls.offsety.addEvent('change', function(){handleOffsetChange(this,iGenerator,'offsety');});
+			controls.rotate.addEvent('change', function(){handleAngleChange(this,iGenerator,'rotate');});
 			});
 		// global controls
 		$('showGrout').addEvent('change',function(){
@@ -421,8 +421,8 @@ var VoronoiDemo = {
 						xout = xin + xoffset;
 						yout = yin + yoffset;
 						if (radian) {
-							xtransient = xout-0.5;
-							ytransient = yout-0.5;
+							xtransient = xout - 0.5; // bring center to origin
+							ytransient = yout - 0.5;
 							xout = xtransient*cosfactor - ytransient*sinfactor + 0.5;
 							yout = xtransient*sinfactor + ytransient*cosfactor + 0.5;
 							}
@@ -438,6 +438,7 @@ var VoronoiDemo = {
 
 	compositeGenerators: function() {
 		this.sites = [];
+		this.hasRotation = false;
 		var w = this.canvas.width,
 			h = this.canvas.height,
 			sitemap = {},
@@ -466,6 +467,7 @@ var VoronoiDemo = {
 				y = (~~(h*y*100+0.5))/100;
 				sitekey = x * 10000 + y; // 10000, or whatever is safely over w and h
 				if (sitemap[sitekey]) {
+					// color mix = additive
 					sitecolor = sitemap[sitekey].color.slice(0);
 					sitecolor[0] = Math.max(sitecolor[0], generator.color[0]);
 					sitecolor[1] = Math.max(sitecolor[1], generator.color[1]);
@@ -479,6 +481,7 @@ var VoronoiDemo = {
 					this.sites.push(site);
 					}
 				}
+			this.hasRotation = this.hasRotation || (generator.rotate && generator.repeatx && generator.repeaty);
 			}
 		this.backgroundGenerator = backgroundGenerator;
 		},
@@ -487,13 +490,15 @@ var VoronoiDemo = {
 		var generators = this.generators,
 			nGenerators = generators.length,
 			iGenerator, generator, controls;
-		this.hasRotation = false;
 		for (iGenerator=0; iGenerator<nGenerators; iGenerator++) {
 			generator = generators[iGenerator];
 			if (whichGenerator === undefined || iGenerator === whichGenerator) {
 				controls = this.controls[iGenerator];
 				if (!whichControl || /^color/.test(whichControl)) {
 					controls.color.value = generator.color.rgbToHex();
+					controls.repeatKnob.style.backgroundColor =
+					controls.offsetKnob.style.backgroundColor =
+					controls.rotateKnob.style.backgroundColor = controls.color.value;
 					}
 				if (!whichControl || /^repeat/.test(whichControl) ) {
 					controls.repeatx.value = generator.repeatx;
@@ -505,7 +510,6 @@ var VoronoiDemo = {
 					controls.rotate.value = generator.rotate.toFixed(3);
 					}
 				}
-			this.hasRotation = this.hasRotation || generator.rotate;
 			}
 		},
 
@@ -605,17 +609,17 @@ window.addEvent('domready',function(){VoronoiDemo.init();});
 		<span>v</span>
 		</div>
 	<div class="repeatValues">
-		<div>Steps<div style="background:#f77;"></div></div>
+		<div>Steps<div style="background-color:#f77;"></div></div>
 		<input type="text" size="6"><br>
 		<input type="text" size="6">
 		</div>
 	<div class="offsetValues">	
-		<div>Offset<div style="background:#f77;"></div></div>
+		<div>Offset<div style="background-color:#f77;"></div></div>
 		<input type="text" size="6"><br>
 		<input type="text" size="6">
 		</div>
 	<div class="rotateValues">
-		<div>Rot<div style="background:#f77;"></div></div>
+		<div>Rot<div style="background-color:#f77;"></div></div>
 		<input type="text" size="6"><br>
 		<input type="text" size="6" style="visibility:hidden">
 		</div>
@@ -629,17 +633,17 @@ window.addEvent('domready',function(){VoronoiDemo.init();});
 		<span>v</span>
 		</div>
 	<div class="repeatValues">
-		<div><div style="background:#7f7;"></div>Steps</div>
+		<div><div style="background-color:#7f7;"></div>Steps</div>
 		<input type="text" size="6"><br>
 		<input type="text" size="6">
 		</div>
 	<div class="offsetValues">
-		<div><div style="background:#7f7;"></div>Offset</div>
+		<div><div style="background-color:#7f7;"></div>Offset</div>
 		<input type="text" size="6"><br>
 		<input type="text" size="6">
 		</div>
 	<div class="rotateValues">
-		<div><div style="background:#7f7;"></div>Rot</div>
+		<div><div style="background-color:#7f7;"></div>Rot</div>
 		<input type="text" size="6"><br>
 		<input type="text" size="6" style="visibility:hidden">
 		</div>
@@ -653,17 +657,17 @@ window.addEvent('domready',function(){VoronoiDemo.init();});
 		<span>v</span>
 		</div>
 	<div class="repeatValues">
-		<div><div style="background:#77f;"></div>Steps</div>
+		<div><div style="background-color:#77f;"></div>Steps</div>
 		<input type="text" size="6"><br>
 		<input type="text" size="6">
 		</div>
 	<div class="offsetValues">
-		<div><div style="background:#77f;"></div>Offset</div>
+		<div><div style="background-color:#77f;"></div>Offset</div>
 		<input type="text" size="6"><br>
 		<input type="text" size="6">
 		</div>
 	<div class="rotateValues">
-		<div><div style="background:#77f;"></div>Rot</div>
+		<div><div style="background-color:#77f;"></div>Rot</div>
 		<input type="text" size="6"><br>
 		<input type="text" size="6" style="visibility:hidden">
 		</div>
