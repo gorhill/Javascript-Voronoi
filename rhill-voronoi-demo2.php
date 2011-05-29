@@ -4,7 +4,7 @@
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
 <title>Javascript implementation of Steven Fortune's algorithm to compute Voronoi diagrams: Demo 2</title>
 <meta name="Keywords" lang="en" content="voronoi, fortune, javascript, raymond hill"/>
-<!--[if IE]><script type="text/javascript" src="excanvas/excanvas.compiled.js"></script><![endif]-->
+<!--[if lte IE 8]><script type="text/javascript" src="excanvas/excanvas.compiled.js"></script><![endif]-->
 <script type="text/javascript" src="rhill-voronoi-core.js"></script>
 <style type="text/css">
 body {font-family:tahoma,verdana,arial;font-size:13px;margin:0;padding:0}
@@ -84,7 +84,7 @@ var VoronoiDemo = {
 
 	clearSites: function() {
 		// we want at least one site, the one tracking the mouse
-		this.sites = [];
+		this.sites = [{x:0,y:0}];
 		this.diagram = this.voronoi.compute(this.sites, this.bbox);
 		},
 
@@ -119,13 +119,14 @@ var VoronoiDemo = {
 		if (!this.diagram) {return;}
 		ctx.strokeStyle='#000';
 		// edges
-		var edges = this.diagram.edges;
-		var iEdge = edges.length;
-		if (iEdge) {
-			var edge, v;
+		var edges = this.diagram.edges,
+			nEdges = edges.length,
+			v;
+		if (nEdges) {
+			var edge;
 			ctx.beginPath();
-			while (iEdge--) {
-				edge = edges[iEdge];
+			while (nEdges--) {
+				edge = edges[nEdges];
 				v = edge.va;
 				ctx.moveTo(v.x,v.y);
 				v = edge.vb;
@@ -134,33 +135,34 @@ var VoronoiDemo = {
 			ctx.stroke();
 			}
 		// how many sites do we have?
-		var sites = this.sites;
-		var nSites = sites.length;
-		if (nSites === 0) {return;}
+		var sites = this.sites,
+			nSites = sites.length;
+		if (!nSites) {return;}
 		// highlight cell under mouse
 		var cell = this.diagram.cells[this.sites[0].voronoiId];
 		// there is no guarantee a Voronoi cell will exist for any
 		// particular site
-		if (cell !== undefined) {
-			var halfedges = cell.halfedges;
-			var nHalfedges = halfedges.length;
-			if (nHalfedges < 3) {return;}
-			var v = halfedges[0].getStartpoint();
-			ctx.beginPath();
-			ctx.moveTo(v.x,v.y);
-			for (var iHalfedge=0; iHalfedge<nHalfedges; iHalfedge++) {
-				v = halfedges[iHalfedge].getEndpoint();
-				ctx.lineTo(v.x,v.y);
+		if (cell) {
+			var halfedges = cell.halfedges,
+				nHalfedges = halfedges.length;
+			if (nHalfedges > 2) {
+				v = halfedges[0].getStartpoint();
+				ctx.beginPath();
+				ctx.moveTo(v.x,v.y);
+				for (var iHalfedge=0; iHalfedge<nHalfedges; iHalfedge++) {
+					v = halfedges[iHalfedge].getEndpoint();
+					ctx.lineTo(v.x,v.y);
+					}
+				ctx.fillStyle = '#faa';
+				ctx.fill();
 				}
-			ctx.fillStyle = '#faa';
-			ctx.fill();
 			}
 		// draw sites
 		var site;
 		ctx.beginPath();
 		ctx.fillStyle = '#44f';
-		for (var iSite=nSites-1; iSite>=0; iSite-=1) {
-			site = sites[iSite];
+		while (nSites--) {
+			site = sites[nSites];
 			ctx.rect(site.x-2/3,site.y-2/3,2,2);
 			}
 		ctx.fill();
