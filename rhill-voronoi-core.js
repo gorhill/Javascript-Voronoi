@@ -140,7 +140,15 @@ Voronoi.Vertex object:
   x: the x coordinate.
   y: the y coordinate.
 
-TODO: Identify opportunities for performance improvement.
+TODO: Identify opportunities for performance improvement:
+      * no need for a Vertex object, the overhead for such a simple object
+        is not worth it. Also, share vertex instances (create new instances
+        at clipping time, etc.), this should reduce significantly the
+        number of separate instances.
+      * site object could keep a reference to their associated cell
+        (voronoiCell?), so this would eliminate the need to lookup
+        the cell using voronoId (although voronoiId would still exists). This
+        is now feasible since Voronoi cells are created at initialization time.
 TODO: Let the user close the Voronoi cells, do not do it automatically. Not only let
       him close the cells, but also allow him to close more than once using a different
       bounding box for the same Voronoi diagram.
@@ -219,8 +227,7 @@ Voronoi.prototype.Beachline.prototype.insertSuccessor = function(node, successor
 		if (parent === grandpa.left) {
 			uncle = grandpa.right;
 			if (uncle && uncle.isRed) {
-				parent.isRed = false;
-				uncle.isRed = false;
+				parent.isRed = uncle.isRed = false;
 				grandpa.isRed = true;
 				node = grandpa;
 				}
@@ -238,8 +245,7 @@ Voronoi.prototype.Beachline.prototype.insertSuccessor = function(node, successor
 		else {
 			uncle = grandpa.left;
 			if (uncle && uncle.isRed) {
-				parent.isRed = false;
-				uncle.isRed = false;
+				parent.isRed = uncle.isRed = false;
 				grandpa.isRed = true;
 				node = grandpa;
 				}
@@ -351,10 +357,9 @@ Voronoi.prototype.Beachline.prototype.remove = function(node) {
 					sibling.isRed = true;
 					this.rotateRight(sibling);
 					sibling = parent.right;
-				}
+					}
 				sibling.isRed = parent.isRed;
-				parent.isRed = false;
-				sibling.right.isRed = false;
+				parent.isRed = sibling.right.isRed = false;
 				this.rotateLeft(parent);
 				node = this.root;
 				break;
@@ -376,8 +381,7 @@ Voronoi.prototype.Beachline.prototype.remove = function(node) {
 					sibling = parent.left;
 					}
 				sibling.isRed = parent.isRed;
-				parent.isRed = false;
-				sibling.left.isRed = false;
+				parent.isRed = sibling.left.isRed = false;
 				this.rotateRight(parent);
 				node = this.root;
 				break;
@@ -392,9 +396,9 @@ Voronoi.prototype.Beachline.prototype.remove = function(node) {
 
 // Red-Black tree code
 Voronoi.prototype.Beachline.prototype.rotateLeft = function(node) {
-	var p = node;
-	var q = node.right; /* can't be null */
-	var parent = p.parent;
+	var p = node,
+		q = node.right, // can't be null
+		parent = p.parent;
 	if (parent) {
 		if (parent.left === p) {
 			parent.left = q;
@@ -417,9 +421,9 @@ Voronoi.prototype.Beachline.prototype.rotateLeft = function(node) {
 
 // Red-Black tree code
 Voronoi.prototype.Beachline.prototype.rotateRight = function(node) {
-	var p = node;
-	var q = node.left; /* can't be null */
-	var parent = p.parent;
+	var p = node,
+		q = node.left, // can't be null
+		parent = p.parent;
 	if (parent) {
 		if (parent.left === p) {
 			parent.left = q;
@@ -440,171 +444,16 @@ Voronoi.prototype.Beachline.prototype.rotateRight = function(node) {
 	q.right = p;
 	};
 
-// For debugging purpose, I imported/adapted this code snippet from
-// http://eternallyconfuzzled.com/tuts/datastructures/jsw_tut_rbtree.aspx
-// in order to validate that the Red-Black tree code works correctly:
-//  "Because it might seem like the algorithms work for small trees, but
-//  then they break on large trees and you don't know why. With a tester
-//  function, we can be confident that the algorithm works, provided we
-//  slam it with enough data into a big enough tree (too large of a case
-//  to test by hand)."
-/*
-Voronoi.prototype.Beachline.prototype.validate = function(root) {
-	if (!root) {return 1;}
-	var left = root.left,
-		right = root.right;
-	// Consecutive red links
-	if (root.isRed) {
-		if ((left && left.isRed) || (right && right.isRed)) {
-			throw 'RBTree.validate(): Red violation';
-			}
-		}
-	var lh = this.validate(left);
-	var rh = this.validate(right);
-	var directrix;
-	// Invalid binary search tree
-	var predecessor = root.previous;
-	if (predecessor) {
-		var prepredecessor = predecessor.previous;
-		if (prepredecessor) {
-			directrix = Math.max(root.site.y,predecessor.site.y,prepredecessor.site.y);
-			if (root.leftParabolicCut(predecessor.site,directrix) < predecessor.leftParabolicCut(prepredecessor.site,directrix)) {
-				throw 'RBTree.validate(): Binary tree violation';
-				}
-			}
-		}
-	var successor = root.next;
-	if (successor) {
-		var postsuccessor = successor.next;
-		if (postsuccessor) {
-			directrix = Math.max(root.site.y,successor.site.y,postsuccessor.site.y);
-			if (successor.leftParabolicCut(root.site,directrix) > postsuccessor.leftParabolicCut(successor.site,directrix)) {
-				throw 'RBTree.validate(): Binary tree violation';
-				}
-			}
-		}
-	// Black height mismatch
-	if (lh !== 0 && rh !== 0 && lh !== rh) {
-		throw 'RBTree.validate(): Black violation';
-		}
-	// Only count black links
-	if (lh !== 0 && rh !== 0) {
-		return root.isRed ? lh : lh+1;
-		}
-	return 0;
-	};
-*/
-// For debugging purpose only:
-/*
-Voronoi.prototype.Beachline.prototype.dump = function(sweep) {
-	console.log('Beachline: sweep at '+sweep.toFixed(3));
-	var node = this.root.getFirst();
-	var predecessor;
-	var successor;
-	var xl, xr;
-	var s;
-	while (node) {
-		predecessor = node.previous;
-		successor = node.next;
-		xl = predecessor ? node.leftParabolicCut(predecessor.site,sweep) : -Infinity;
-		xr = successor ? successor.leftParabolicCut(node.site,sweep) : Infinity;
-		s = '\txl='+xl.toFixed(3)+', xr='+xr.toFixed(3)+', site={id:'+node.site.voronoiId+', x:'+node.site.x+', y:'+node.site.y+'}';
-		if (node.isCollapsing()) {
-			s += ', collapse at {x:'+node.circleEvent.x.toFixed(3)+', y:'+node.circleEvent.y.toFixed(3)+'}';
-			}
-		console.log(s);
-		node = successor;
-		}
-	this.validate(this.root);
-	};
-*/
-
 // Beachsection object
 Voronoi.prototype.Beachline.prototype.Beachsection = function(site) {
 	this.site = site;
-	this.edge = null;
-	// Caching stuff
-	this.sweep = -Infinity;
-	this.lSite = null;
-	this.circleEvent = undefined;
+	this.edge = this.circleEvent = null;
 	// Red-Black tree stuff
 	this.isRed = false;
 	this.parent = this.left = this.right = this.previous = this.next = null;
 	};
 
 Voronoi.prototype.Beachline.prototype.Beachsection.prototype.sqrt = Math.sqrt;
-
-// given parabola 'site', return the intersection with parabola 'left'
-// immediately to the left of x
-Voronoi.prototype.Beachline.prototype.Beachsection.prototype._leftParabolicCut = function(site, lSite, directrix) {
-	// http://en.wikipedia.org/wiki/Parabola
-	// http://en.wikipedia.org/wiki/Quadratic_equation
-	// h1 = x1,
-	// k1 = (y1+directrix)/2,
-	// h2 = x2,
-	// k2 = (y2+directrix)/2,
-	// p1 = k1-directrix,
-	// a1 = 1/(4*p1),
-	// b1 = -h1/(2*p1),
-	// c1 = h1*h1/(4*p1)+k1,
-	// p2 = k2-directrix,
-	// a2 = 1/(4*p2),
-	// b2 = -h2/(2*p2),
-	// c2 = h2*h2/(4*p2)+k2,
-	// x = (-(b2-b1) + Math.sqrt((b2-b1)*(b2-b1) - 4*(a2-a1)*(c2-c1))) / (2*(a2-a1))
-	// When x1 become the x-origin:
-	// h1 = 0,
-	// k1 = (y1+directrix)/2,
-	// h2 = x2-x1,
-	// k2 = (y2+directrix)/2,
-	// p1 = k1-directrix,
-	// a1 = 1/(4*p1),
-	// b1 = 0,
-	// c1 = k1,
-	// p2 = k2-directrix,
-	// a2 = 1/(4*p2),
-	// b2 = -h2/(2*p2),
-	// c2 = h2*h2/(4*p2)+k2,
-	// x = (-b2 + Math.sqrt(b2*b2 - 4*(a2-a1)*(c2-k1))) / (2*(a2-a1)) + x1
-
-	// change code below at your own risk: care has been taken to
-	// reduce errors due to computers' finite arithmetic precision.
-	// Maybe can still be improved, will see if any more of this
-	// kind of errors pop up again.
-	var rfocx = site.x,
-		rfocy = site.y,
-		pby2 = rfocy-directrix;
-	// parabola in degenerate case where focus is on directrix
-	if (!pby2) {
-		return rfocx;
-		}
-	var lfocx = lSite.x,
-		lfocy = lSite.y,
-		plby2 = lfocy-directrix;
-	// parabola in degenerate case where focus is on directrix
-	if (!plby2) {
-		return lfocx;
-		}
-	// both parabolas have same distance to directrix, thus break point is midway
-	if (rfocy === lfocy) {
-		return (rfocx+lfocx)/2;
-		}
-	// calculate break point the normal way
-	var	hl = lfocx-rfocx,
-		aby2 = 1/pby2-1/plby2,
-		b = hl/plby2;
-	return (-b+this.sqrt(b*b-2*aby2*(hl*hl/(-2*plby2)-lfocy+plby2/2+rfocy-pby2/2)))/aby2+rfocx;
-	};
-
-// higher level method which caches parabolic cut result and attempt to reuse it
-Voronoi.prototype.Beachline.prototype.Beachsection.prototype.leftParabolicCut = function(lSite, directrix) {
-	if (this.sweep !== directrix || this.lSite !== lSite) {
-		this.sweep = directrix;
-		this.lSite = lSite;
-		this.lBreak = this._leftParabolicCut(this.site, lSite, directrix);
-		}
-	return this.lBreak;
-	};
 
 Voronoi.prototype.Beachline.prototype.Beachsection.prototype.isCollapsing = function() {
 	return this.circleEvent && this.circleEvent.type;
@@ -707,21 +556,81 @@ Voronoi.prototype.Halfedge.prototype.getEndpoint = function() {
 
 // calculate the left break point of a particular beach section,
 // given a particular sweep line
-Voronoi.prototype.leftBreakPoint = function(arc, sweep) {
+Voronoi.prototype.leftBreakPoint = function(arc, directrix) {
+	// http://en.wikipedia.org/wiki/Parabola
+	// http://en.wikipedia.org/wiki/Quadratic_equation
+	// h1 = x1,
+	// k1 = (y1+directrix)/2,
+	// h2 = x2,
+	// k2 = (y2+directrix)/2,
+	// p1 = k1-directrix,
+	// a1 = 1/(4*p1),
+	// b1 = -h1/(2*p1),
+	// c1 = h1*h1/(4*p1)+k1,
+	// p2 = k2-directrix,
+	// a2 = 1/(4*p2),
+	// b2 = -h2/(2*p2),
+	// c2 = h2*h2/(4*p2)+k2,
+	// x = (-(b2-b1) + Math.sqrt((b2-b1)*(b2-b1) - 4*(a2-a1)*(c2-c1))) / (2*(a2-a1))
+	// When x1 become the x-origin:
+	// h1 = 0,
+	// k1 = (y1+directrix)/2,
+	// h2 = x2-x1,
+	// k2 = (y2+directrix)/2,
+	// p1 = k1-directrix,
+	// a1 = 1/(4*p1),
+	// b1 = 0,
+	// c1 = k1,
+	// p2 = k2-directrix,
+	// a2 = 1/(4*p2),
+	// b2 = -h2/(2*p2),
+	// c2 = h2*h2/(4*p2)+k2,
+	// x = (-b2 + Math.sqrt(b2*b2 - 4*(a2-a1)*(c2-k1))) / (2*(a2-a1)) + x1
+
+	// change code below at your own risk: care has been taken to
+	// reduce errors due to computers' finite arithmetic precision.
+	// Maybe can still be improved, will see if any more of this
+	// kind of errors pop up again.
+	var site = arc.site,
+		rfocx = site.x,
+		rfocy = site.y,
+		pby2 = rfocy-directrix;
+	// parabola in degenerate case where focus is on directrix
+	if (!pby2) {
+		return rfocx;
+		}
 	var lArc = arc.previous;
-	if (!lArc) {return -Infinity;}
-	return arc.leftParabolicCut(lArc.site, sweep);
+	if (!lArc) {
+		return -Infinity;
+		}
+	site = lArc.site;
+	var lfocx = site.x,
+		lfocy = site.y,
+		plby2 = lfocy-directrix;
+	// parabola in degenerate case where focus is on directrix
+	if (!plby2) {
+		return lfocx;
+		}
+	// both parabolas have same distance to directrix, thus break point is midway
+	if (rfocy === lfocy) {
+		return (rfocx+lfocx)/2;
+		}
+	// calculate break point the normal way
+	var	hl = lfocx-rfocx,
+		aby2 = 1/pby2-1/plby2,
+		b = hl/plby2;
+	return (-b+this.sqrt(b*b-2*aby2*(hl*hl/(-2*plby2)-lfocy+plby2/2+rfocy-pby2/2)))/aby2+rfocx;
 	};
 
 // calculate the right break point of a particular beach section,
 // given a particular directrix
-Voronoi.prototype.rightBreakPoint = function(arc, sweep) {
+Voronoi.prototype.rightBreakPoint = function(arc, directrix) {
 	var rArc = arc.next;
 	if (rArc) {
-		return this.leftBreakPoint(rArc,sweep);
+		return this.leftBreakPoint(rArc, directrix);
 		}
 	var site = arc.site;
-	return site.y === sweep ? site.x : Infinity;
+	return site.y === directrix ? site.x : Infinity;
 	};
 
 // this create and add an edge to internal collection, and also create
@@ -811,7 +720,7 @@ Voronoi.prototype.removeArc = function(event) {
 	for (iArc=1; iArc<nArcs; iArc++) {
 		rArc = disappearingTransitions[iArc];
 		lArc = disappearingTransitions[iArc-1];
-		this.setEdgeStartpoint(rArc.edge, lArc.site, rArc.site, new this.Vertex(x,y));
+		this.setEdgeStartpoint(rArc.edge, lArc.site, rArc.site, {x:x, y:y} /*new this.Vertex(x,y)*/);
 		}
 
 	// removed collapsed beach sections from beachline.
@@ -828,7 +737,7 @@ Voronoi.prototype.removeArc = function(event) {
 	// on the left)
 	lArc = disappearingTransitions[0];
 	rArc = disappearingTransitions[nArcs-1];
-	rArc.edge = this.createEdge(lArc.site, rArc.site, undefined, new this.Vertex(x,y));
+	rArc.edge = this.createEdge(lArc.site, rArc.site, undefined, {x:x, y:y} /*new this.Vertex(x,y)*/);
 
 	// create circle events if any for beach sections left in the beachline
 	// adjacent to collapsed sections
@@ -956,11 +865,11 @@ Voronoi.prototype.addArc = function(site) {
 		// an existing transition disappears, meaning a vertex is defined at
 		// the disappearance point
 		var circle = this.circumcircleCenter(lArc.site,site,rArc.site);
-		this.setEdgeStartpoint(rArc.edge, lArc.site, rArc.site, new this.Vertex(circle.x,circle.y));
+		this.setEdgeStartpoint(rArc.edge, lArc.site, rArc.site, {x:circle.x, y:circle.y} /*new this.Vertex(circle.x,circle.y)*/ );
 
 		// two new transitions appear at the new vertex location
-		newArc.edge = this.createEdge(lArc.site,newArc.site,undefined,new this.Vertex(circle.x,circle.y));
-		rArc.edge = this.createEdge(newArc.site,rArc.site,undefined,new this.Vertex(circle.x,circle.y));
+		newArc.edge = this.createEdge(lArc.site, newArc.site, undefined, {x:circle.x, y:circle.y} /*new this.Vertex(circle.x,circle.y)*/);
+		rArc.edge = this.createEdge(newArc.site, rArc.site, undefined, {x:circle.x, y:circle.y} /*new this.Vertex(circle.x,circle.y)*/);
 
 		// check whether the left and right beach sections are collapsing
 		// and if so create circle events, to handle the point of collapse.
@@ -1053,7 +962,7 @@ Voronoi.prototype.voidCircleEvent = function(arc) {
 		arc.circleEvent.type = this.VOID_EVENT;
 		// after profiling in Chromium, found out assigning 'undefined' is more efficient than
 		// using 'delete' on the property (possibly because 'delete' triggers a 're-classification'?)
-		arc.circleEvent = undefined;
+		arc.circleEvent = null;
 		}
 	};
 
