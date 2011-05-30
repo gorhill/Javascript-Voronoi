@@ -38,7 +38,7 @@ div.rotateValues > input {width:25px;}
 <!--[if lte IE 8]>
 	<script type="text/javascript" src="excanvas/excanvas.compiled.js"></script>
 	<![endif]-->
-<script type="text/javascript" src="rhill-voronoi-core.js"></script>
+<script type="text/javascript" src="rhill-voronoi-core.min.js"></script>
 <script type="text/javascript">
 <!--
 var _gaq = _gaq || [];
@@ -117,11 +117,11 @@ var VoronoiDemo = {
 			],
 		[
 			{repeatx:9, repeaty:11, color:'#ffccaa'},
-			{repeatx:10, repeaty:10, color: '#ccaa88'}
+			{repeatx:10, repeaty:10, color:'#ccaa88'}
 			],
 		[
 			{repeatx:24, repeaty:24, rotate:0.25, color:'#ffccaa'},
-			{repeatx:24, repeaty:24, color: '#ccaa88'}
+			{repeatx:24, repeaty:24, color:'#ccaa88'}
 			],
 		[
 			{repeatx:9, repeaty:12},
@@ -139,9 +139,9 @@ var VoronoiDemo = {
 			{repeatx:5, repeaty:5}
 			],
 		[
-			{repeatx:20, repeaty:20},
-			{repeatx:21, repeaty:21},
-			{repeatx:22, repeaty:22}
+			{repeatx:20, repeaty:20, color:'#efe4b0'},
+			{repeatx:21, repeaty:21, color:'#b5e61d'},
+			{repeatx:22, repeaty:22, color:'#c8bfe7'}
 			]
 		],
 	<?php if ( isset($preset) ) { echo "urlpreset: {$preset},\n"; } ?>
@@ -600,6 +600,7 @@ window.addEvent('domready',function(){VoronoiDemo.init();});
 &nbsp;
 <div class="pane" id="voronoiGenerators">
 <h4 class="divhdr">1st-degree generators</h4>
+<span style="margin-bottom:0.5em;display:inline-block;width:160px;font-size:xx-small;color:gray">(This page works best on latest <a style="color:inherit" href="http://www.opera.com/browser/">Opera browser</a>: I measured fastest execution + it natively supports HTML5 color picker)</span>
 <div class="tileParms">
 	<div class="colorValues">
 		Color: <input type="color" value="#ff8080"> <a target="_blank" href="http://www.html5tutorial.info/html5-color.php">?</a>
@@ -711,7 +712,7 @@ window.addEvent('domready',function(){VoronoiDemo.init();});
 	</div>
 <div>
 	<h4>Further reading</h4>
-	<p style="margin-top:0.5em"><a href="http://www.cs.washington.edu/homes/csk/tile/papers/kaplan_isama1999.pdf">Voronoi diagrams and ornamental design</a> by Craig S. Kaplan.<br><a href="http://www.josleys.com/show_gallery.php?galid=284">Mathematical imagery</a> by Jos Leys.</p>
+	<p style="margin-top:0.5em"><a href="http://www.cs.washington.edu/homes/csk/tile/papers/kaplan_isama1999.pdf">Voronoi diagrams and ornamental design (PDF file)</a> by Craig S. Kaplan.<br><a href="http://www.josleys.com/show_gallery.php?galid=284">Mathematical imagery</a> by Jos Leys.</p>
 	</div>
 </body>
 </html>
