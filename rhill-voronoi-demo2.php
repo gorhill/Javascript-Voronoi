@@ -5,7 +5,7 @@
 <title>Javascript implementation of Steven Fortune's algorithm to compute Voronoi diagrams: Demo 2</title>
 <meta name="Keywords" lang="en" content="voronoi, fortune, javascript, raymond hill"/>
 <!--[if lte IE 8]><script type="text/javascript" src="excanvas/excanvas.compiled.js"></script><![endif]-->
-<script type="text/javascript" src="rhill-voronoi-core.js"></script>
+<script type="text/javascript" src="rhill-voronoi-core.min.js"></script>
 <style type="text/css">
 body {font-family:tahoma,verdana,arial;font-size:13px;margin:0;padding:0}
 body > div {margin-left:4px;margin-right:4px;}
