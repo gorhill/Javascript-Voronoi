@@ -2,7 +2,7 @@ A Javascript implementation of Steven J. Fortune's algorithm to
 efficiently compute Voronoi diagrams. The Voronoi object's purpose is
 to solely compute a Voronoi diagram, it is completely standalone, with
 no dependency on external code: it contains no rendering code, that is
-left to the user of the library.
+left to the user of the library. MIT license.
 
 Files
 -----
@@ -10,6 +10,9 @@ Files
 rhill-voronoi-core.js
   Where the Voronoi object is implemented. This is a standalone library,
   there is no dependency.
+
+rhill-voronoi-core.min.js
+  The minimized version (using YUI compressor)
 
 rhill-voronoi-demo1.php
 rhill-voronoi-demo2.php
@@ -44,18 +47,22 @@ Roughly:
 
   var voronoi = new Voronoi();
   var bbox = {xl:0,xr:800,yt:0,yb:600};
+  var vertices = [{x:200, y:200}, {x:50, y:250}, {x:400, y:100} /* , ... */];
   // a 'vertex' is an object exhibiting 'x' and 'y' properties. The
   // Voronoi object will add a unique 'voronoiId' property to all
   // vertices. The 'voronoiId' can be used as a key to lookup the
   // associated cell in 'diagram.cells'.
-  var diagram = voronoi.compute([ /* an array of vertices */ ], bbox);
+  var diagram = voronoi.compute(vertices, bbox);
 
 The returned 'diagram' variable is a Javascript object with the
 following properties:
 
   diagram.edges:
     An array of unordered, unique Voronoi.Edge objects making up the
-    Voronoi diagram.
+    Voronoi diagram. Edges are defined by two vertices, 'va' and 'vb',
+	which vertices are shared by connected edges. This mean that
+	if you change one vertex belonging to an edge, other connected edges
+	will also be changed.
 
   diagram.cells:
     An array of Voronoi.Cell objects making up the Voronoi diagram. A Cell object
@@ -71,30 +78,26 @@ Objects:
     The Voronoi object which computes a Voronoi diagram.
 
   Voronoi.Edge:
-    lSite: the Voronoi.Site object at the left of this Voronoi.Edge object.
-    rSite: the Voronoi.Site object at the right of this Voronoi.Edge object (can be null).
-    va: the Voronoi.Vertex object defining the start point (relative to the Voronoi.Site
-      on the left) of this Voronoi.Edge object.
-    vb: the Voronoi.Vertex object defining the end point (relative to Voronoi.Site on
-      the left) of this Voronoi.Edge object.
+    lSite: the Voronoi site object at the left of this Voronoi.Edge object.
+    rSite: the Voronoi site object at the right of this Voronoi.Edge object (can be null,
+      when this is a border edge).
+    va: an object with an 'x' and a 'y' property defining the start point
+      (relative to the Voronoi site on the left) of this Voronoi.Edge object.
+    vb: an object with an 'x' and a 'y' property defining the end point
+      (relative to Voronoi site on the left) of this Voronoi.Edge object.
 
   Voronoi.Cell:
-    site: the Voronoi.Site object associated with the Voronoi cell.
+    site: the Voronoi site object associated with the Voronoi cell.
     halfedges: an array of Voronoi.Halfedge objects, ordered counterclockwise, defining the
       polygon for this Voronoi cell.
 
   Voronoi.Halfedge:
-    site: the Voronoi.Site object owning this Voronoi.Halfedge object.
+    site: the Voronoi site object owning this Voronoi.Halfedge object.
     edge: a reference to the unique Voronoi.Edge object underlying this Voronoi.Halfedge object.
-    getStartpoint(): a method returning a Voronoi.Vertex for the start point of this
-      halfedge. Keep in mind halfedges are always countercockwise.
-    getEndpoint(): a method returning a Voronoi.Vertex for the end point of this
-      halfedge. Keep in mind halfedges are always countercockwise.
-
-  Voronoi.Vertex:
-    x: the x coordinate.
-    y: the y coordinate.
-    Really can be any object as long as it exhibits 'x' and 'y' property members.
+    getStartpoint(): a method returning an object with an 'x' and a 'y' property for the start
+      point of this halfedge. Keep in mind halfedges are always countercockwise.
+    getEndpoint(): a method returning an object with an 'x' and a 'y' property for the end
+      point of this halfedge. Keep in mind halfedges are always countercockwise.
 
 
 License
@@ -123,4 +126,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
-
