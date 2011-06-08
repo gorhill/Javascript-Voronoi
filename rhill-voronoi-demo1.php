@@ -38,7 +38,7 @@ var VoronoiDemo = {
 	voronoi: new Voronoi(),
 	sites: [],
 	diagram: null,
-	margin: 50,
+	margin: 0.1,
 	canvas: null,
 	bbox: {xl:0,xr:800,yt:0,yb:600},
 
@@ -57,13 +57,20 @@ var VoronoiDemo = {
 	randomSites: function(n,clear) {
 		if (clear) {this.sites = [];}
 		// create vertices
-		var xo = this.margin;
-		var dx = this.canvas.width-this.margin*2;
-		var yo = this.margin;
-		var dy = this.canvas.height-this.margin*2;
+		var xmargin = this.canvas.width*this.margin,
+			ymargin = this.canvas.height*this.margin,
+			xo = xmargin,
+			dx = this.canvas.width-xmargin*2,
+			yo = ymargin,
+			dy = this.canvas.height-ymargin*2;
 		for (var i=0; i<n; i++) {
 			this.sites.push({x:self.Math.round((xo+self.Math.random()*dx)*10)/10,y:self.Math.round((yo+self.Math.random()*dy)*10)/10});
 			}
+		this.diagram = this.voronoi.compute(this.sites, this.bbox);
+		this.updateStats();
+		},
+
+	recompute: function() {
 		this.diagram = this.voronoi.compute(this.sites, this.bbox);
 		this.updateStats();
 		},
@@ -129,7 +136,7 @@ var VoronoiDemo = {
 <h4 class="divhdr">Canvas <span id="voronoiStats" style="font:normal 11px sans"></span></h4>
 <div id="canvasParent">
 <noscript>You need to enable Javascript in your browser for this page to display properly.</noscript>
-<canvas id="voronoiCanvas" width="800" height="600"></canvas>
+<canvas id="voronoiCanvas" width="800" height="600" onclick="VoronoiDemo.recompute();"></canvas>
 <div id="voronoiNoCanvasAlert" style="display:none;padding:1em;background-color:#fcc;color:black;">
 <p>Your browser doesn't support the HTML5 &lt;canvas&gt; element technology.</p>
 <p>See <a target="_blank" href="http://en.wikipedia.org/wiki/Canvas_(HTML_element)">Wikipedia</a> for information on which browsers support the <u>HTML5 &lt;canvas&gt;</u> technology.</p>
