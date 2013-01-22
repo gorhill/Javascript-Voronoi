@@ -103,8 +103,8 @@ var VoronoiDemo = {
 			{repeatx:5, repeaty:5}
 			],
 		[
-			{repeatx:7, repeaty:12},
-			{repeatx:7, repeaty:12, offsetx:0.5,  offsety:0.5}
+			{repeatx:7, repeaty:12, rrepeatx:10},
+			{repeatx:7, repeaty:12, offsetx:0.5,  offsety:0.5, rrepeatx:10}
 			],
 		[
 			{repeatx:10, repeaty:10, offsetx:-0.5, offsety:-0.5},
@@ -187,7 +187,7 @@ var VoronoiDemo = {
 				demo.updatePermalink();
 				};
 		var handleStepChange = function(el,iGenerator,member) {
-				handleValueChange(iGenerator,member,Math.min(Math.max(parseInt(el.value,10),0),50));
+				handleValueChange(iGenerator,member,Math.min(Math.max(parseInt(el.value,10),0),25));
 				};
 		var handleOffsetChange = function(el,iGenerator,member) {
 				handleValueChange(iGenerator,member,Math.min(Math.max(parseFloat(el.value),-0.5),0.5));
@@ -199,8 +199,8 @@ var VoronoiDemo = {
 			var coords = el.getCoordinates(el.getOffsetParent()),
 				generator = demo.generators[iGenerator],
 				hadTiles = generator.repeatx && generator.repeaty;
-			generator.repeatx = coords.left;
-			generator.repeaty = coords.top;
+			generator.repeatx = coords.left >> 1;
+			generator.repeaty = coords.top >> 1;
 			var	hasTiles = generator.repeatx && generator.repeaty;
 			generator.render();
 			demo.syncTextFields(iGenerator, 'repeat');
@@ -317,12 +317,13 @@ var VoronoiDemo = {
 
 	renderCanvas: function() {
 		var ctx = this.canvas.getContext('2d'),
+			interactive = this.dragging,
 			backgroundGenerator = this.backgroundGenerator;
 		// background
 		ctx.globalAlpha = 1;
 		ctx.beginPath();
 		ctx.rect(0,0,this.canvas.width,this.canvas.height);
-		ctx.fillStyle = this.hasRotation || !backgroundGenerator ? '#fff' : backgroundGenerator.color.rgbToHex();
+		ctx.fillStyle = this.hasRotation || !backgroundGenerator || interactive ? '#fff' : backgroundGenerator.color.rgbToHex();
 		ctx.fill();
 		// voronoi
 		if (!this.diagram) {return;}
@@ -330,7 +331,7 @@ var VoronoiDemo = {
 		// disk-like canvas if at least one rotation is applied: this
 		// because the canvas is not 'tilable' whenever at least one generator
 		// has a non-zero rotation value
-		if (this.hasRotation) {
+		if (!interactive && this.hasRotation) {
 			ctx.beginPath();
 			ctx.arc(this.canvas.width/2,this.canvas.height/2, this.canvas.width/2, 0, 2*Math.PI, false);
 			ctx.clip();
@@ -340,20 +341,20 @@ var VoronoiDemo = {
 				}
 			}
 		ctx.lineWidth = 0.5;
-		ctx.strokeStyle = '#888';
+		ctx.strokeStyle = '#444';
 		var cells = this.diagram.cells,
 			iCell = cells.length,
 			cell,
 			halfedges, nHalfedges, iHalfedge, v,
-			showGrout = !this.dragging && this.showGrout,
-			showSites = this.showSites,
+			showGrout = interactive || this.showGrout,
+			showSites = interactive || this.showSites,
 			mustFill;
 		while (iCell--) {
 			cell = cells[iCell];
 			halfedges = cell.halfedges;
 			nHalfedges = halfedges.length;
 			if (nHalfedges) {
-				mustFill = !backgroundGenerator || backgroundGenerator !== cell.site.generator;
+				mustFill = !interactive && (!backgroundGenerator || backgroundGenerator !== cell.site.generator);
 				if (showGrout || mustFill) {
 					v = halfedges[0].getStartpoint();
 					ctx.beginPath();
@@ -390,10 +391,15 @@ var VoronoiDemo = {
 
 	createGenerator: function(color) {
 		var generator = {
-			repeatx: 0,
-			repeaty: 0,
+			// 1st-degree - linear grid
+			repeatx: 0, // integer
+			repeaty: 0, // integer
 			offsetx: 0,
 			offsety: 0,
+			// 2nd-degree - radial grid (centered around site generated in 1st-degree)
+			rrepeatx: 0, // integer
+			rrepeaty: 0, // integer
+			// global - applies to the final computed site
 			rotate: 0,
 			color: color,
 			sites: [],
@@ -413,23 +419,54 @@ var VoronoiDemo = {
 					radian = this.rotate*Math.PI,
 					cosfactor = Math.cos(radian),
 					sinfactor = Math.sin(radian),
-					xtransient, ytransient;
+					xtransient, ytransient,
+					radius;
 				while (ystep-- > 0) {
 					xin = -xinc;
 					xstep = this.repeatx + 2;
+					radius = Math.sqrt(yinc*yinc+xinc*xinc) / 2;
 					while (xstep-- > 0) {
 						xout = xin + xoffset;
 						yout = yin + yoffset;
-						if (radian) {
-							xtransient = xout - 0.5; // bring center to origin
-							ytransient = yout - 0.5;
-							xout = xtransient*cosfactor - ytransient*sinfactor + 0.5;
-							yout = xtransient*sinfactor + ytransient*cosfactor + 0.5;
+						// now we have a 1st-degree site, apply 2nd-degree
+						if (this.rrepeatx) {
+							this.render2nd(xout, yout, radius, this.rrepeatx, radian);
 							}
-						sites.push({x:xout, y:yout, color:this.color});
+						// rotate the whole thing if specified
+						else {
+							if (radian) {
+								xtransient = xout - 0.5; // bring center to origin
+								ytransient = yout - 0.5;
+								xout = xtransient*cosfactor - ytransient*sinfactor + 0.5;
+								yout = xtransient*sinfactor + ytransient*cosfactor + 0.5;
+								}
+							sites.push({x:xout, y:yout, color:this.color});
+							}
 						xin += xinc;
 						}
 					yin += yinc;
+					}
+				},
+			render2nd: function(x, y, r, repeatx, rotate) {
+				var sites = this.sites,
+					xstep = repeatx,
+					xinc = Math.PI*2/xstep,
+					xin,
+					cosfactor = Math.cos(rotate),
+					sinfactor = Math.sin(rotate),
+					xtransient, ytransient,
+					color = [255,255,255];
+				xstep = repeatx;
+				xin = 0;
+				while (xstep--) {
+					xout = x + r * Math.cos(xin);
+					yout = y + r * Math.sin(xin);
+					xtransient = xout - 0.5; // bring center to origin
+					ytransient = yout - 0.5;
+					xout = xtransient*cosfactor - ytransient*sinfactor + 0.5;
+					yout = xtransient*sinfactor + ytransient*cosfactor + 0.5;
+					sites.push({x:xout, y:yout, color:color});
+					xin += xinc;
 					}
 				}
 			};
@@ -448,7 +485,8 @@ var VoronoiDemo = {
 			backgroundGenerator,
 			sites, nSites, iSite, site,
 			sitecolor, sitekey,
-			x, y;
+			x, y,
+			colors = {};
 		for (iGenerator = 0; iGenerator<nGenerators; iGenerator++) {
 			generator = generators[iGenerator];
 			sites = generator.sites;
@@ -469,14 +507,14 @@ var VoronoiDemo = {
 				if (sitemap[sitekey]) {
 					// color mix = additive
 					sitecolor = sitemap[sitekey].color.slice(0);
-					sitecolor[0] = Math.max(sitecolor[0], generator.color[0]);
-					sitecolor[1] = Math.max(sitecolor[1], generator.color[1]);
-					sitecolor[2] = Math.max(sitecolor[2], generator.color[2]);
+					sitecolor[0] = Math.max(sitecolor[0], site.color[0]);
+					sitecolor[1] = Math.max(sitecolor[1], site.color[1]);
+					sitecolor[2] = Math.max(sitecolor[2], site.color[2]);
 					sitemap[sitekey].color = sitecolor;
 					sitemap[sitekey].generator = null;
 					}
 				else {
-					site = {x:x, y:y, color:generator.color, generator:generator};
+					site = {x:x, y:y, color:site.color, generator:generator};
 					sitemap[sitekey] = site;
 					this.sites.push(site);
 					}
@@ -548,6 +586,8 @@ var VoronoiDemo = {
 			generator.repeaty = preset_generator.repeaty || 0;
 			generator.offsetx = preset_generator.offsetx || 0;
 			generator.offsety = preset_generator.offsety || 0;
+			generator.rrepeatx = preset_generator.rrepeatx || 0;
+			generator.rrepeaty = preset_generator.rrepeaty || 0;
 			generator.rotate = preset_generator.rotate || 0;
 			generator.color = (preset_generator.color || defaultColors[iGenerator] || '#999999').hexToRgb(true);
 			generator.render();
@@ -584,7 +624,7 @@ window.addEvent('domready',function(){VoronoiDemo.init();});
 </script>
 </head>
 <body>
-<a href="http://github.com/gorhill/Javascript-Voronoi"><img style="position:absolute;top:0;right:0;border:0;" src="https://d3nwyuy0nl342s.cloudfront.net/img/7afbc8b248c68eb468279e8c17986ad46549fb71/687474703a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f6461726b626c75655f3132313632312e706e67" alt="Fork me on GitHub"></a>
+<a href="https://github.com/gorhill/Javascript-Voronoi"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_red_aa0000.png" alt="Fork me on GitHub"></a>
 <h1>Javascript implementation of Steven Fortune's algorithm to compute Voronoi diagrams<br/>Demo 3: Fancy tiling</h1>
 <div id="divroot">
 <p style="margin-top:0;"><a href="/voronoi/rhill-voronoi.php">&lt; Back to main page</a> | <a href="rhill-voronoi-demo1.php">Demo 1: measuring peformance</a> | <a href="rhill-voronoi-demo2.php">Demo 2: a bit of interactivity</a> | <b>Demo 3: Fancy tiling</b> | <a href="http://www.raymondhill.net/blog/?p=458#comments">Comments</a></p>

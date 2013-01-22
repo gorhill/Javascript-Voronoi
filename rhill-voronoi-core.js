@@ -505,7 +505,7 @@ Voronoi.prototype.Cell.prototype.prepare = function() {
 	// rhill 2011-05-27: Keep it simple, no point here in trying
 	// to be fancy: dangling edges are a typically a minority.
 	while (iHalfedge--) {
- 		edge = halfedges[iHalfedge].edge;
+		edge = halfedges[iHalfedge].edge;
 		if (!edge.vb || !edge.va) {
 			halfedges.splice(iHalfedge,1);
 			}
