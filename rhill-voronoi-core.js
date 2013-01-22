@@ -1,8 +1,9 @@
 /*!
 Author: Raymond Hill (rhill@raymondhill.net)
+Contributor: Jesse Morgan (morgajel@gmail.com)
 File: rhill-voronoi-core.js
-Version: 0.96
-Date: May 26, 2011
+Version: 0.96-morg1
+Date: January 21, 2013
 Description: This is my personal Javascript implementation of
 Steven Fortune's algorithm to compute Voronoi diagrams.
 
@@ -477,6 +478,29 @@ Voronoi.prototype.Cell = function(site) {
 	this.site = site;
 	this.halfedges = [];
 	};
+
+// Return a list of the Neighbor IDs
+
+Voronoi.prototype.Cell.prototype.getNeighborIDs = function() {
+    var neighbors = [];
+    for (var i = 0 ; i < this.halfedges.length ; i++){
+        var edge = this.halfedges[i].edge;
+        if ( edge.lSite != null && edge.lSite.voronoiId != this.site.voronoiId) {
+            neighbors.push( edge.lSite.voronoiId );
+        }else if ( edge.rSite != null && edge.rSite.voronoiId != this.site.voronoiId){
+            neighbors.push( edge.rSite.voronoiId );
+        }
+    }
+    return neighbors;
+}
+
+// Return a random neighbor's ID
+
+Voronoi.prototype.Cell.prototype.getRandomNeighborID = function() {
+    var neighborids=this.getNeighborIDs()
+    
+    return neighborsids[Math.floor(Math.random()*neighborids.length )];
+}
 
 Voronoi.prototype.Cell.prototype.prepare = function() {
 	var halfedges = this.halfedges,
