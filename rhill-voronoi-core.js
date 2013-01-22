@@ -1,8 +1,9 @@
 /*!
 Author: Raymond Hill (rhill@raymondhill.net)
+Contributor: Jesse Morgan (morgajel@gmail.com)
 File: rhill-voronoi-core.js
-Version: 0.96
-Date: May 26, 2011
+Version: 0.96-morg1
+Date: January 21, 2013
 Description: This is my personal Javascript implementation of
 Steven Fortune's algorithm to compute Voronoi diagrams.
 
@@ -475,8 +476,32 @@ Voronoi.prototype.RBTree.prototype.getLast = function(node) {
 
 Voronoi.prototype.Cell = function(site) {
 	this.site = site;
+	this.corners   = [];
 	this.halfedges = [];
 	};
+
+// Return a list of the Neighbor IDs
+
+Voronoi.prototype.Cell.prototype.getNeighborIDs = function() {
+    var neighbors = [];
+    for (var i = 0 ; i < this.halfedges.length ; i++){
+        var edge = this.halfedges[i].edge;
+        if ( edge.lSite != null && edge.lSite.voronoiId != this.site.voronoiId) {
+            neighbors.push( edge.lSite.voronoiId );
+        }else if ( edge.rSite != null && edge.rSite.voronoiId != this.site.voronoiId){
+            neighbors.push( edge.rSite.voronoiId );
+        }
+    }
+    return neighbors;
+}
+
+// Return a random neighbor's ID
+
+Voronoi.prototype.Cell.prototype.getRandomNeighborID = function() {
+    var neighborids=this.getNeighborIDs()
+    
+    return neighborsids[Math.floor(Math.random()*neighborids.length )];
+}
 
 Voronoi.prototype.Cell.prototype.prepare = function() {
 	var halfedges = this.halfedges,
@@ -486,11 +511,18 @@ Voronoi.prototype.Cell.prototype.prepare = function() {
 	// rhill 2011-05-27: Keep it simple, no point here in trying
 	// to be fancy: dangling edges are a typically a minority.
 	while (iHalfedge--) {
+        this.corners.push(halfedges[iHalfedge].getStartpoint());
 		edge = halfedges[iHalfedge].edge;
 		if (!edge.vb || !edge.va) {
 			halfedges.splice(iHalfedge,1);
 			}
 		}
+    // This is an ugly hack to remove null corners
+    this.corners = this.corners.filter(
+                        function(val) { 
+                            return val !== null; 
+                        });
+
 	// rhill 2011-05-26: I tried to use a binary search at insertion
 	// time to keep the array sorted on-the-fly (in Cell.addHalfedge()).
 	// There was no real benefits in doing so, performance on
@@ -1441,6 +1473,7 @@ Voronoi.prototype.compute = function(sites, bbox) {
 	var result = {
 		cells: this.cells,
 		edges: this.edges,
+		corners: this.corners,
 		execTime: stopTime.getTime()-startTime.getTime()
 		};
 
