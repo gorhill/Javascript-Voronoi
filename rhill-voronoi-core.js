@@ -483,24 +483,19 @@ Voronoi.prototype.Cell = function(site) {
 // Return a list of the Neighbor IDs
 
 Voronoi.prototype.Cell.prototype.getNeighborIDs = function() {
-    var neighbors = [];
-    for (var i = 0 ; i < this.halfedges.length ; i++){
-        var edge = this.halfedges[i].edge;
-        if ( edge.lSite != null && edge.lSite.voronoiId != this.site.voronoiId) {
-            neighbors.push( edge.lSite.voronoiId );
-        }else if ( edge.rSite != null && edge.rSite.voronoiId != this.site.voronoiId){
-            neighbors.push( edge.rSite.voronoiId );
-        }
-    }
-    return neighbors;
-}
-
-// Return a random neighbor's ID
-
-Voronoi.prototype.Cell.prototype.getRandomNeighborID = function() {
-    var neighborids=this.getNeighborIDs()
-    
-    return neighborsids[Math.floor(Math.random()*neighborids.length )];
+	var neighbors = [],
+		iHalfedge = this.halfedges.length,
+		edge;
+	while (iHalfedge--){
+		edge = this.halfedges[iHalfedge].edge;
+		if (edge.lSite != null && edge.lSite.voronoiId != this.site.voronoiId) {
+			neighbors.push(edge.lSite.voronoiId);
+			}
+		else if (edge.rSite != null && edge.rSite.voronoiId != this.site.voronoiId){
+			neighbors.push(edge.rSite.voronoiId);
+			}
+		}
+	return neighbors;
 }
 
 Voronoi.prototype.Cell.prototype.prepare = function() {
@@ -517,11 +512,6 @@ Voronoi.prototype.Cell.prototype.prepare = function() {
 			halfedges.splice(iHalfedge,1);
 			}
 		}
-    // This is an ugly hack to remove null corners
-    this.corners = this.corners.filter(
-                        function(val) { 
-                            return val !== null; 
-                        });
 
 	// rhill 2011-05-26: I tried to use a binary search at insertion
 	// time to keep the array sorted on-the-fly (in Cell.addHalfedge()).
