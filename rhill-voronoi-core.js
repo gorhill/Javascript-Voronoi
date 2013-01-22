@@ -476,7 +476,6 @@ Voronoi.prototype.RBTree.prototype.getLast = function(node) {
 
 Voronoi.prototype.Cell = function(site) {
 	this.site = site;
-	this.corners   = [];
 	this.halfedges = [];
 	};
 
@@ -506,8 +505,7 @@ Voronoi.prototype.Cell.prototype.prepare = function() {
 	// rhill 2011-05-27: Keep it simple, no point here in trying
 	// to be fancy: dangling edges are a typically a minority.
 	while (iHalfedge--) {
-        this.corners.push(halfedges[iHalfedge].getStartpoint());
-		edge = halfedges[iHalfedge].edge;
+ 		edge = halfedges[iHalfedge].edge;
 		if (!edge.vb || !edge.va) {
 			halfedges.splice(iHalfedge,1);
 			}
@@ -1463,7 +1461,6 @@ Voronoi.prototype.compute = function(sites, bbox) {
 	var result = {
 		cells: this.cells,
 		edges: this.edges,
-		corners: this.corners,
 		execTime: stopTime.getTime()-startTime.getTime()
 		};
 
