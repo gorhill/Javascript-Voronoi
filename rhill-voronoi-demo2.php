@@ -19,21 +19,6 @@ h4 > span {cursor:pointer}
 </style>
 <script type="text/javascript">
 <!--
-var _gaq = _gaq || [];
-_gaq.push(['_setAccount', 'UA-5586753-2']);
-_gaq.push(['_trackPageview']);
-(function() {
-	var ga = document.createElement('script');
-	ga.type = 'text/javascript';
-	ga.async = true;
-	ga.src = 'http://www.google-analytics.com/ga.js';
-	var s = document.getElementsByTagName('script')[0];
-	s.parentNode.insertBefore(ga, s);
-	})();
-// -->
-</script>
-<script type="text/javascript">
-<!--
 var VoronoiDemo = {
 
 	voronoi: new Voronoi(),
@@ -175,7 +160,13 @@ var VoronoiDemo = {
 <a href="https://github.com/gorhill/Javascript-Voronoi"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_red_aa0000.png" alt="Fork me on GitHub"></a>
 <h1>Javascript implementation of Steven Fortune's algorithm to compute Voronoi diagrams<br/>Demo 2: A bit of interactivity added</h1>
 <div id="divroot" style="width:800px;">
-<p style="margin-top:0;"><a href="/voronoi/rhill-voronoi.php">&lt; Back to main page</a> | <a href="rhill-voronoi-demo1.php">Demo 1: measuring peformance</a> | <b>Demo 2: a bit of interactivity</b> | <a href="rhill-voronoi-demo3.php">Demo 3: Fancy tiling</a> | <a href="http://www.raymondhill.net/blog/?p=458#comments">Comments</a></p>
+<p style="margin-top:0;margin-bottom:0"><a href="/voronoi/rhill-voronoi.php">&lt; Back to main page</a><ul style="margin-top:0">
+<li><a href="rhill-voronoi-demo1.php">Demo 1: measuring peformance</a>
+<li><b>Demo 2: a bit of interactivity</b>
+<li><a href="rhill-voronoi-demo3.php">Demo 3: Fancy tiling</a>
+<li><a href="rhill-voronoi-demo4.php">Demo 4: Looking up a Voronoi cell using a quadtree</a>
+<li><a href="http://www.raymondhill.net/blog/?p=458#comments">Comments</a>
+</ul></p>
 <h4 class="divhdr">Sites generator</h4>
 <div class="divinfo" id="voronoiGenerator">
 <input type="button" value="Generate" onclick="VoronoiDemo.randomSites(parseInt(document.getElementById('voronoiNumberSites').value,10),true);VoronoiDemo.render();"/> or <input type="button" value="Add" onclick="VoronoiDemo.randomSites(parseInt(document.getElementById('voronoiNumberSites').value,10),false);VoronoiDemo.render();"/><input id="voronoiNumberSites" type="text" value="10" size="5" maxlength="5"/> sites randomly (Warning: performance might suffer the more sites you add.)

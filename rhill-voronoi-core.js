@@ -472,6 +472,14 @@ Voronoi.prototype.RBTree.prototype.getLast = function(node) {
 	};
 
 // ---------------------------------------------------------------------------
+// Diagram methods
+
+Voronoi.prototype.Diagram = function(site) {
+	this.site = site;
+	this.halfedges = [];
+	};
+
+// ---------------------------------------------------------------------------
 // Cell methods
 
 Voronoi.prototype.Cell = function(site) {
@@ -479,9 +487,8 @@ Voronoi.prototype.Cell = function(site) {
 	this.halfedges = [];
 	};
 
-// Return a list of the Neighbor IDs
-
-Voronoi.prototype.Cell.prototype.getNeighborIDs = function() {
+// Return a list of the neighbor Ids
+Voronoi.prototype.Cell.prototype.getNeighborIds = function() {
 	var neighbors = [],
 		iHalfedge = this.halfedges.length,
 		edge;
@@ -1458,14 +1465,13 @@ Voronoi.prototype.compute = function(sites, bbox) {
 	var stopTime = new Date();
 
 	// prepare return values
-	var result = {
-		cells: this.cells,
-		edges: this.edges,
-		execTime: stopTime.getTime()-startTime.getTime()
-		};
+	var diagram = new this.Diagram();
+	diagram.cells = this.cells;
+	diagram.edges = this.edges;
+	diagram.execTime = stopTime.getTime()-startTime.getTime();
 
 	// clean up
 	this.reset();
 
-	return result;
+	return diagram;
 	};
