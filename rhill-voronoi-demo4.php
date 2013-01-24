@@ -1,0 +1,571 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<title>Javascript implementation of Steven Fortune's algorithm to compute Voronoi diagrams: Demo 4</title>
+<meta name="Keywords" lang="en" content="voronoi, fortune, javascript, raymond hill"/>
+<!--[if lte IE 8]><script type="text/javascript" src="excanvas/excanvas.compiled.js"></script><![endif]-->
+<script type="text/javascript" src="rhill-voronoi-core.min.js"></script>
+<script type="text/javascript" src="QuadTree.js"></script>
+<style type="text/css">
+body {font-family:tahoma,verdana,arial;font-size:13px;margin:0;padding:0}
+body > div {margin-left:4px;margin-right:4px;}
+body > div > div {margin:0;border:1px solid #ccc;border-top:0;padding:4px;}
+h1 {margin:0 0 0.5em 0;padding: 4px 5em 4px 4px;font:bold large sans-serif;background-color:#c9d7f1;}
+h4 {font-size:14px;margin:0.5em 0 0 0;border:0;border-bottom:solid 1px #c9d7f1;padding:2px;background-color:#e5ecf9;}
+#canvasParent {margin-top:0;margin-bottom:1em;padding:0;border:0}
+#voronoiCode {font:11px monospace;overflow:auto;color:#666;}
+#voronoiCode span {color:green;font-weight:bold;}
+</style>
+<script type="text/javascript">
+<!--
+var VoronoiDemo = {
+
+	voronoi: new Voronoi(),
+	sites: [],
+	diagram: null,
+	margin: 0.1,
+	canvas: null,
+	bbox: {xl:0,xr:800,yt:0,yb:600},
+	lastCell: undefined,
+	treemap: null,
+
+	init: function() {
+		this.canvas = document.getElementById('voronoiCanvas');
+		this.randomSites(100,true);
+		this.render();
+		},
+
+	clearSites: function() {
+		this.sites = [];
+		this.treemap = null;
+		this.diagram = this.voronoi.compute(this.sites, this.bbox);
+		this.updateStats();
+		},
+
+	randomSites: function(n,clear) {
+		if (clear) {this.sites = [];}
+		// create vertices
+		var xmargin = this.canvas.width*this.margin,
+			ymargin = this.canvas.height*this.margin,
+			xo = xmargin,
+			dx = this.canvas.width-xmargin*2,
+			yo = ymargin,
+			dy = this.canvas.height-ymargin*2;
+		for (var i=0; i<n; i++) {
+			this.sites.push({x:self.Math.round((xo+self.Math.random()*dx)*10)/10,y:self.Math.round((yo+self.Math.random()*dy)*10)/10});
+			}
+		this.treemap = null;
+		this.diagram = this.voronoi.compute(this.sites, this.bbox);
+		this.updateStats();
+		},
+
+	recompute: function() {
+		this.treemap = null;
+		this.diagram = this.voronoi.compute(this.sites, this.bbox);
+		this.updateStats();
+		},
+
+	updateStats: function() {
+		if (!this.diagram) {return;}
+		var e = document.getElementById('voronoiStats');
+		if (!e) {return;}
+		e.innerHTML = '('+this.diagram.cells.length+' Voronoi cells computed from '+this.diagram.cells.length+' Voronoi sites in '+this.diagram.execTime+' ms &ndash; rendering <i>not</i> included)';
+		},
+
+	buildTreemap: function() {
+		var treemap = new QuadTree({
+			x: this.bbox.xl,
+			y: this.bbox.yt,
+			width: this.bbox.xr-this.bbox.xl,
+			height: this.bbox.yb-this.bbox.yt
+			});
+		var cells = this.diagram.cells,
+			iCell = cells.length,
+			cell,
+			halfedges, iHalfedge, halfedge,
+			v, vx, vy, xmin, xmax, ymin, ymax
+			;
+		// iterate through all cells
+		while (iCell--) {
+			cell = cells[iCell];
+			// compute bounding box of cell
+			halfedges = cell.halfedges;
+			nHalfedges = halfedges.length;
+			xmin = ymin = Number.MAX_VALUE;
+			xmax = ymax = Number.MIN_VALUE;
+			for (iHalfedge = 0; iHalfedge<nHalfedges; iHalfedge++) {
+				halfedge = halfedges[iHalfedge];
+				v = halfedge.getStartpoint();
+				vx = v.x;
+				vy = v.y;
+				if (vx < xmin) {xmin = vx;}
+				if (vy < ymin) {ymin = vy;}
+				if (vx > xmax) {xmax = vx;}
+				if (vy > ymax) {ymax = vy;}
+				// we dont need to take into account end point,
+				// since each end point matches a start point
+				}
+			// insert bounding box in treemap
+			treemap.insert({
+				x: xmin, 
+				y: ymin,
+				height: xmax-xmin,
+				width: ymax-ymin,
+				cellid: iCell
+				});
+			}
+		return treemap;
+		},
+
+	cellUnderMouse: function(ev) {
+		if (!this.diagram) {return;}
+		var canvas = document.getElementById('voronoiCanvas');
+		if (!canvas) {
+			return;
+			}
+		// >>> http://www.quirksmode.org/js/events_properties.html#position
+		var x = 0,
+			y = 0;
+		if (!ev) {
+			ev = window.event;
+			}
+		if (ev.pageX || ev.pageY) {
+			x = ev.pageX;
+			y = ev.pageY;
+			}
+		else if (e.clientX || e.clientY) {
+			x = ev.clientX + document.body.scrollLeft + document.documentElement.scrollLeft;
+			y = ev.clientY + document.body.scrollTop + document.documentElement.scrollTop;
+			}
+		// <<< http://www.quirksmode.org/js/events_properties.html#position
+		x -= canvas.offsetLeft;
+		y -= canvas.offsetTop;
+		cellid = this.cellIdFromPoint(x,y);
+		if (this.lastCell !== cellid) {
+			if (this.lastCell !== undefined) {
+				this.renderCell(this.lastCell, '#fff', '#000');
+				}
+			if (cellid !== undefined) {
+				this.renderCell(cellid, '#f00', '#00f');
+				}
+			this.lastCell = cellid;
+			}
+		document.getElementById('voronoiCellid').innerHTML = "(" + x + "," + y + ") = " + cellid;
+		},
+
+	cellIdFromPoint: function(x, y) {
+		// We build the treemap on-demand
+		if (this.treemap === null) {
+			this.treemap = this.buildTreemap();
+			}
+		// Get the Voronoi cells from the tree map given x,y
+		var items = this.treemap.retrieve({x:x, y:y}),
+			iItem = items.length,
+			cells = this.diagram.cells,
+			cell,
+			halfedges, iHalfedge, halfedge,
+			inside
+			;
+		// Now we need to find the only one matching x,y from the set
+		while (iItem--) {
+			cell = cells[items[iItem].cellid];
+			// Check if point in polygon. Since all polygons of a Voronoi
+			// diagram are convex, then:
+			// http://paulbourke.net/geometry/polygonmesh/
+			// Solution 3 (2D):
+			//   "If the polygon is convex then one can consider the polygon
+			//   "as a 'path' from the first vertex. A point is on the interior
+			//   "of this polygons if it is always on the same side of all the
+			//   "line segments making up the path. ...
+			//   "(y - y0) (x1 - x0) - (x - x0) (y1 - y0)
+			//   "if it is less than 0 then P is to the right of the line segment,
+			//   "if greater than 0 it is to the left, if equal to 0 then it lies
+			//   "on the line segment"
+			halfedges = cell.halfedges;
+			iHalfedge = halfedges.length;
+			inside = true;
+			while (iHalfedge--) {
+				halfedge = halfedges[iHalfedge];
+				p0 = halfedge.getStartpoint();
+				p1 = halfedge.getEndpoint();
+				inside = ((y-p0.y)*(p1.x-p0.x)-(x-p0.x)*(p1.y-p0.y)) < 0;
+				if (!inside) {
+					break;
+					}
+				}
+			if (inside) {
+				return cell.site.voronoiId;
+				}
+			}
+		return undefined;
+		},
+
+	renderCell: function(id, fillStyle, strokeStyle) {
+		if (id === undefined) {return;}
+		if (!this.diagram) {return;}
+		var cell = this.diagram.cells[id];
+		if (!cell) {return;}
+		var ctx = this.canvas.getContext('2d');
+		ctx.globalAlpha = 1;
+		// edges
+		ctx.beginPath();
+		var halfedges = cell.halfedges,
+			nHalfedges = halfedges.length,
+			v = halfedges[0].getStartpoint();
+		ctx.moveTo(v.x,v.y);
+		for (var iHalfedge=0; iHalfedge<nHalfedges; iHalfedge++) {
+			v = halfedges[iHalfedge].getEndpoint();
+			ctx.lineTo(v.x,v.y);
+			}
+		ctx.fillStyle = fillStyle;
+		ctx.strokeStyle = strokeStyle;
+		ctx.fill();
+		ctx.stroke();
+		// site
+		v = cell.site;
+		ctx.fillStyle = '#44f';
+		ctx.beginPath();
+		ctx.rect(v.x-2/3,v.y-2/3,2,2);
+		ctx.fill();
+		},
+
+	render: function() {
+		var ctx = this.canvas.getContext('2d');
+		// background
+		ctx.globalAlpha = 1;
+		ctx.beginPath();
+		ctx.rect(0,0,this.canvas.width,this.canvas.height);
+		ctx.fillStyle = 'white';
+		ctx.fill();
+		ctx.strokeStyle = '#888';
+		ctx.stroke();
+		// voronoi
+		if (!this.diagram) {return;}
+		// edges
+		ctx.beginPath();
+		ctx.strokeStyle = '#000';
+		var edges = this.diagram.edges,
+			iEdge = edges.length,
+			edge, v;
+		while (iEdge--) {
+			edge = edges[iEdge];
+			v = edge.va;
+			ctx.moveTo(v.x,v.y);
+			v = edge.vb;
+			ctx.lineTo(v.x,v.y);
+			}
+		ctx.stroke();
+		// sites
+		ctx.beginPath();
+		ctx.fillStyle = '#44f';
+		var sites = this.sites,
+			iSite = sites.length;
+		while (iSite--) {
+			v = sites[iSite];
+			ctx.rect(v.x-2/3,v.y-2/3,2,2);
+			}
+		ctx.fill();
+		},
+	};
+// -->
+</script>
+</head>
+<body onload="VoronoiDemo.init();">
+<a href="https://github.com/gorhill/Javascript-Voronoi"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_red_aa0000.png" alt="Fork me on GitHub"></a>
+<h1>Javascript implementation of Steven Fortune's algorithm to compute Voronoi diagrams<br/>Demo 4: Looking up a Voronoi cell using a quadtree</h1>
+<div id="divroot" style="width:800px;">
+<p style="margin-top:0;margin-bottom:0"><a href="/voronoi/rhill-voronoi.php">&lt; Back to main page</a><ul style="margin-top:0">
+<li><a href="rhill-voronoi-demo1.php">Demo 1: measuring peformance</a>
+<li><a href="rhill-voronoi-demo2.php">Demo 2: a bit of interactivity</a>
+<li><a href="rhill-voronoi-demo3.php">Demo 3: Fancy tiling</a>
+<li><b>Demo 4: Looking up a Voronoi cell using a quadtree</b>
+<li><a href="http://www.raymondhill.net/blog/?p=458#comments">Comments</a>
+</ul></p>
+<h4 class="divhdr">Sites generator</h4>
+<div class="divinfo" id="voronoiGenerator">
+<input type="button" value="Generate" onclick="VoronoiDemo.randomSites(parseInt(document.getElementById('voronoiNumberSites').value,10),true);VoronoiDemo.render();"/> or <input type="button" value="Add" onclick="VoronoiDemo.randomSites(parseInt(document.getElementById('voronoiNumberSites').value,10),false);VoronoiDemo.render();"/><input id="voronoiNumberSites" type="text" value="100" size="5" maxlength="5"/> sites randomly (Warning: performance might suffer the more sites you add.)
+<br/><input id="voronoiClearSites" type="button" value="Clear all sites" onclick="VoronoiDemo.clearSites();VoronoiDemo.render();"/>
+</div>
+<h4 class="divhdr">Canvas <span id="voronoiStats" style="font:normal 11px sans"></span> <span style="font:normal 11px sans"> / Cell id at <span id="voronoiCellid" style="font:normal 11px sans"></span></span></h4>
+<div id="canvasParent">
+<noscript>You need to enable Javascript in your browser for this page to display properly.</noscript>
+<canvas id="voronoiCanvas" width="800" height="600" onclick="VoronoiDemo.recompute();" onmousemove="VoronoiDemo.cellUnderMouse(event);"></canvas>
+<div id="voronoiNoCanvasAlert" style="display:none;padding:1em;background-color:#fcc;color:black;">
+<p>Your browser doesn't support the HTML5 &lt;canvas&gt; element technology.</p>
+<p>See <a target="_blank" href="http://en.wikipedia.org/wiki/Canvas_(HTML_element)">Wikipedia</a> for information on which browsers support the <u>HTML5 &lt;canvas&gt;</u> technology.</p>
+</div>
+</div>
+<h4 class="divhdr">Javascript source code for this page</h4>
+<div class="divinfo" id="voronoiCode">
+<pre>
+<span>&lt;script type=&quot;text/javascript&quot; src=&quot;<a href="rhill-voronoi-core.js" target="_blank">rhill-voronoi-core.js</a>&quot;&gt;&lt;/script&gt;</span>
+<span>&lt;script type=&quot;text/javascript&quot; src=&quot;<a href="https://github.com/mikechambers/ExamplesByMesh/blob/master/JavaScript/QuadTree/src/QuadTree.js" target="_blank">QuadTree.js</a>&quot;&gt;&lt;/script&gt;</span>
+
+...
+
+<?php
+echo htmlentities(<<<EOT
+<script type="text/javascript">
+<!--
+var VoronoiDemo = {
+
+	voronoi: new Voronoi(),
+	sites: [],
+	diagram: null,
+	margin: 0.1,
+	canvas: null,
+	bbox: {xl:0,xr:800,yt:0,yb:600},
+	lastCell: undefined,
+	treemap: null,
+
+	init: function() {
+		this.canvas = document.getElementById('voronoiCanvas');
+		this.randomSites(100,true);
+		this.render();
+		},
+
+	clearSites: function() {
+		this.sites = [];
+		this.treemap = null;
+		this.diagram = this.voronoi.compute(this.sites, this.bbox);
+		this.updateStats();
+		},
+
+	randomSites: function(n,clear) {
+		if (clear) {this.sites = [];}
+		// create vertices
+		var xmargin = this.canvas.width*this.margin,
+			ymargin = this.canvas.height*this.margin,
+			xo = xmargin,
+			dx = this.canvas.width-xmargin*2,
+			yo = ymargin,
+			dy = this.canvas.height-ymargin*2;
+		for (var i=0; i<n; i++) {
+			this.sites.push({x:self.Math.round((xo+self.Math.random()*dx)*10)/10,y:self.Math.round((yo+self.Math.random()*dy)*10)/10});
+			}
+		this.treemap = null;
+		this.diagram = this.voronoi.compute(this.sites, this.bbox);
+		this.updateStats();
+		},
+
+	recompute: function() {
+		this.treemap = null;
+		this.diagram = this.voronoi.compute(this.sites, this.bbox);
+		this.updateStats();
+		},
+
+	updateStats: function() {
+		if (!this.diagram) {return;}
+		var e = document.getElementById('voronoiStats');
+		if (!e) {return;}
+		e.innerHTML = '('+this.diagram.cells.length+' Voronoi cells computed from '+this.diagram.cells.length+' Voronoi sites in '+this.diagram.execTime+' ms &ndash; rendering <i>not</i> included)';
+		},
+
+	buildTreemap: function() {
+		var treemap = new QuadTree({
+			x: this.bbox.xl,
+			y: this.bbox.yt,
+			width: this.bbox.xr-this.bbox.xl,
+			height: this.bbox.yb-this.bbox.yt
+			});
+		var cells = this.diagram.cells,
+			iCell = cells.length,
+			cell,
+			halfedges, iHalfedge, halfedge,
+			v, vx, vy, xmin, xmax, ymin, ymax
+			;
+		// iterate through all cells
+		while (iCell--) {
+			cell = cells[iCell];
+			// compute bounding box of cell
+			halfedges = cell.halfedges;
+			nHalfedges = halfedges.length;
+			xmin = ymin = Number.MAX_VALUE;
+			xmax = ymax = Number.MIN_VALUE;
+			for (iHalfedge = 0; iHalfedge<nHalfedges; iHalfedge++) {
+				halfedge = halfedges[iHalfedge];
+				v = halfedge.getStartpoint();
+				vx = v.x;
+				vy = v.y;
+				if (vx < xmin) {xmin = vx;}
+				if (vy < ymin) {ymin = vy;}
+				if (vx > xmax) {xmax = vx;}
+				if (vy > ymax) {ymax = vy;}
+				// we dont need to take into account end point,
+				// since each end point matches a start point
+				}
+			// insert bounding box in treemap
+			treemap.insert({
+				x: xmin, 
+				y: ymin,
+				height: xmax-xmin,
+				width: ymax-ymin,
+				cellid: iCell
+				});
+			}
+		return treemap;
+		},
+
+	cellUnderMouse: function(ev) {
+		if (!this.diagram) {return;}
+		var canvas = document.getElementById('voronoiCanvas');
+		if (!canvas) {
+			return;
+			}
+		// >>> http://www.quirksmode.org/js/events_properties.html#position
+		var x = 0,
+			y = 0;
+		if (!ev) {
+			ev = window.event;
+			}
+		if (ev.pageX || ev.pageY) {
+			x = ev.pageX;
+			y = ev.pageY;
+			}
+		else if (e.clientX || e.clientY) {
+			x = ev.clientX + document.body.scrollLeft + document.documentElement.scrollLeft;
+			y = ev.clientY + document.body.scrollTop + document.documentElement.scrollTop;
+			}
+		// <<< http://www.quirksmode.org/js/events_properties.html#position
+		x -= canvas.offsetLeft;
+		y -= canvas.offsetTop;
+		cellid = this.cellIdFromPoint(x,y);
+		if (this.lastCell !== cellid) {
+			if (this.lastCell !== undefined) {
+				this.renderCell(this.lastCell, '#fff', '#000');
+				}
+			if (cellid !== undefined) {
+				this.renderCell(cellid, '#f00', '#00f');
+				}
+			this.lastCell = cellid;
+			}
+		document.getElementById('voronoiCellid').innerHTML = "(" + x + "," + y + ") = " + cellid;
+		},
+
+	cellIdFromPoint: function(x, y) {
+		// We build the treemap on-demand
+		if (this.treemap === null) {
+			this.treemap = this.buildTreemap();
+			}
+		// Get the Voronoi cells from the tree map given x,y
+		var items = this.treemap.retrieve({x:x, y:y}),
+			iItem = items.length,
+			cells = this.diagram.cells,
+			cell,
+			halfedges, iHalfedge, halfedge,
+			inside
+			;
+		// Now we need to find the only one matching x,y from the set
+		while (iItem--) {
+			cell = cells[items[iItem].cellid];
+			// Check if point in polygon. Since all polygons of a Voronoi
+			// diagram are convex, then:
+			// http://paulbourke.net/geometry/polygonmesh/
+			// Solution 3 (2D):
+			//   "If the polygon is convex then one can consider the polygon
+			//   "as a 'path' from the first vertex. A point is on the interior
+			//   "of this polygons if it is always on the same side of all the
+			//   "line segments making up the path. ...
+			//   "(y - y0) (x1 - x0) - (x - x0) (y1 - y0)
+			//   "if it is less than 0 then P is to the right of the line segment,
+			//   "if greater than 0 it is to the left, if equal to 0 then it lies
+			//   "on the line segment"
+			halfedges = cell.halfedges;
+			iHalfedge = halfedges.length;
+			inside = true;
+			while (iHalfedge--) {
+				halfedge = halfedges[iHalfedge];
+				p0 = halfedge.getStartpoint();
+				p1 = halfedge.getEndpoint();
+				inside = ((y-p0.y)*(p1.x-p0.x)-(x-p0.x)*(p1.y-p0.y)) < 0;
+				if (!inside) {
+					break;
+					}
+				}
+			if (inside) {
+				return cell.site.voronoiId;
+				}
+			}
+		return undefined;
+		},
+
+	renderCell: function(id, fillStyle, strokeStyle) {
+		if (id === undefined) {return;}
+		if (!this.diagram) {return;}
+		var cell = this.diagram.cells[id];
+		if (!cell) {return;}
+		var ctx = this.canvas.getContext('2d');
+		ctx.globalAlpha = 1;
+		// edges
+		ctx.beginPath();
+		var halfedges = cell.halfedges,
+			nHalfedges = halfedges.length,
+			v = halfedges[0].getStartpoint();
+		ctx.moveTo(v.x,v.y);
+		for (var iHalfedge=0; iHalfedge<nHalfedges; iHalfedge++) {
+			v = halfedges[iHalfedge].getEndpoint();
+			ctx.lineTo(v.x,v.y);
+			}
+		ctx.fillStyle = fillStyle;
+		ctx.strokeStyle = strokeStyle;
+		ctx.fill();
+		ctx.stroke();
+		// site
+		v = cell.site;
+		ctx.fillStyle = '#44f';
+		ctx.beginPath();
+		ctx.rect(v.x-2/3,v.y-2/3,2,2);
+		ctx.fill();
+		},
+
+	render: function() {
+		var ctx = this.canvas.getContext('2d');
+		// background
+		ctx.globalAlpha = 1;
+		ctx.beginPath();
+		ctx.rect(0,0,this.canvas.width,this.canvas.height);
+		ctx.fillStyle = 'white';
+		ctx.fill();
+		ctx.strokeStyle = '#888';
+		ctx.stroke();
+		// voronoi
+		if (!this.diagram) {return;}
+		// edges
+		ctx.beginPath();
+		ctx.strokeStyle = '#000';
+		var edges = this.diagram.edges,
+			iEdge = edges.length,
+			edge, v;
+		while (iEdge--) {
+			edge = edges[iEdge];
+			v = edge.va;
+			ctx.moveTo(v.x,v.y);
+			v = edge.vb;
+			ctx.lineTo(v.x,v.y);
+			}
+		ctx.stroke();
+		// sites
+		ctx.beginPath();
+		ctx.fillStyle = '#44f';
+		var sites = this.sites,
+			iSite = sites.length;
+		while (iSite--) {
+			v = sites[iSite];
+			ctx.rect(v.x-2/3,v.y-2/3,2,2);
+			}
+		ctx.fill();
+		},
+	};
+// -->
+</script>
+EOT
+, ENT_QUOTES);
+?>
+
+...
+</pre>
+</div>
+</div>
+</body>
+</html>
