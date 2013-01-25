@@ -81,39 +81,12 @@ var VoronoiDemo = {
 			height: this.bbox.yb-this.bbox.yt
 			});
 		var cells = this.diagram.cells,
-			iCell = cells.length,
-			cell,
-			halfedges, iHalfedge, halfedge,
-			v, vx, vy, xmin, xmax, ymin, ymax
-			;
+			iCell = cells.length;
 		// iterate through all cells
 		while (iCell--) {
-			cell = cells[iCell];
-			// compute bounding box of cell
-			halfedges = cell.halfedges;
-			nHalfedges = halfedges.length;
-			xmin = ymin = Number.MAX_VALUE;
-			xmax = ymax = Number.MIN_VALUE;
-			for (iHalfedge = 0; iHalfedge<nHalfedges; iHalfedge++) {
-				halfedge = halfedges[iHalfedge];
-				v = halfedge.getStartpoint();
-				vx = v.x;
-				vy = v.y;
-				if (vx < xmin) {xmin = vx;}
-				if (vy < ymin) {ymin = vy;}
-				if (vx > xmax) {xmax = vx;}
-				if (vy > ymax) {ymax = vy;}
-				// we dont need to take into account end point,
-				// since each end point matches a start point
-				}
-			// insert bounding box in treemap
-			treemap.insert({
-				x: xmin, 
-				y: ymin,
-				height: xmax-xmin,
-				width: ymax-ymin,
-				cellid: iCell
-				});
+			bbox = cells[iCell].getBbox();
+			bbox.cellid = iCell;
+			treemap.insert(bbox);
 			}
 		return treemap;
 		},
@@ -160,42 +133,15 @@ var VoronoiDemo = {
 			this.treemap = this.buildTreemap();
 			}
 		// Get the Voronoi cells from the tree map given x,y
-		var items = this.treemap.retrieve({x:x, y:y}),
+		var items = this.treemap.retrieve({x:x,y:y}),
 			iItem = items.length,
 			cells = this.diagram.cells,
-			cell,
-			halfedges, iHalfedge, halfedge,
-			inside
-			;
-		// Now we need to find the only one matching x,y from the set
+			cell, cellid;
 		while (iItem--) {
-			cell = cells[items[iItem].cellid];
-			// Check if point in polygon. Since all polygons of a Voronoi
-			// diagram are convex, then:
-			// http://paulbourke.net/geometry/polygonmesh/
-			// Solution 3 (2D):
-			//   "If the polygon is convex then one can consider the polygon
-			//   "as a 'path' from the first vertex. A point is on the interior
-			//   "of this polygons if it is always on the same side of all the
-			//   "line segments making up the path. ...
-			//   "(y - y0) (x1 - x0) - (x - x0) (y1 - y0)
-			//   "if it is less than 0 then P is to the right of the line segment,
-			//   "if greater than 0 it is to the left, if equal to 0 then it lies
-			//   "on the line segment"
-			halfedges = cell.halfedges;
-			iHalfedge = halfedges.length;
-			inside = true;
-			while (iHalfedge--) {
-				halfedge = halfedges[iHalfedge];
-				p0 = halfedge.getStartpoint();
-				p1 = halfedge.getEndpoint();
-				inside = ((y-p0.y)*(p1.x-p0.x)-(x-p0.x)*(p1.y-p0.y)) < 0;
-				if (!inside) {
-					break;
-					}
-				}
-			if (inside) {
-				return cell.site.voronoiId;
+			cellid = items[iItem].cellid;
+			cell = cells[cellid];
+			if (cell.pointIntersection(x,y) > 0) {
+				return cellid;
 				}
 			}
 		return undefined;
@@ -370,39 +316,12 @@ var VoronoiDemo = {
 			height: this.bbox.yb-this.bbox.yt
 			});
 		var cells = this.diagram.cells,
-			iCell = cells.length,
-			cell,
-			halfedges, iHalfedge, halfedge,
-			v, vx, vy, xmin, xmax, ymin, ymax
-			;
+			iCell = cells.length;
 		// iterate through all cells
 		while (iCell--) {
-			cell = cells[iCell];
-			// compute bounding box of cell
-			halfedges = cell.halfedges;
-			nHalfedges = halfedges.length;
-			xmin = ymin = Number.MAX_VALUE;
-			xmax = ymax = Number.MIN_VALUE;
-			for (iHalfedge = 0; iHalfedge<nHalfedges; iHalfedge++) {
-				halfedge = halfedges[iHalfedge];
-				v = halfedge.getStartpoint();
-				vx = v.x;
-				vy = v.y;
-				if (vx < xmin) {xmin = vx;}
-				if (vy < ymin) {ymin = vy;}
-				if (vx > xmax) {xmax = vx;}
-				if (vy > ymax) {ymax = vy;}
-				// we dont need to take into account end point,
-				// since each end point matches a start point
-				}
-			// insert bounding box in treemap
-			treemap.insert({
-				x: xmin, 
-				y: ymin,
-				height: xmax-xmin,
-				width: ymax-ymin,
-				cellid: iCell
-				});
+			bbox = cells[iCell].getBbox();
+			bbox.cellid = iCell;
+			treemap.insert(bbox);
 			}
 		return treemap;
 		},
@@ -449,42 +368,15 @@ var VoronoiDemo = {
 			this.treemap = this.buildTreemap();
 			}
 		// Get the Voronoi cells from the tree map given x,y
-		var items = this.treemap.retrieve({x:x, y:y}),
+		var items = this.treemap.retrieve({x:x,y:y}),
 			iItem = items.length,
 			cells = this.diagram.cells,
-			cell,
-			halfedges, iHalfedge, halfedge,
-			inside
-			;
-		// Now we need to find the only one matching x,y from the set
+			cell, cellid;
 		while (iItem--) {
-			cell = cells[items[iItem].cellid];
-			// Check if point in polygon. Since all polygons of a Voronoi
-			// diagram are convex, then:
-			// http://paulbourke.net/geometry/polygonmesh/
-			// Solution 3 (2D):
-			//   "If the polygon is convex then one can consider the polygon
-			//   "as a 'path' from the first vertex. A point is on the interior
-			//   "of this polygons if it is always on the same side of all the
-			//   "line segments making up the path. ...
-			//   "(y - y0) (x1 - x0) - (x - x0) (y1 - y0)
-			//   "if it is less than 0 then P is to the right of the line segment,
-			//   "if greater than 0 it is to the left, if equal to 0 then it lies
-			//   "on the line segment"
-			halfedges = cell.halfedges;
-			iHalfedge = halfedges.length;
-			inside = true;
-			while (iHalfedge--) {
-				halfedge = halfedges[iHalfedge];
-				p0 = halfedge.getStartpoint();
-				p1 = halfedge.getEndpoint();
-				inside = ((y-p0.y)*(p1.x-p0.x)-(x-p0.x)*(p1.y-p0.y)) < 0;
-				if (!inside) {
-					break;
-					}
-				}
-			if (inside) {
-				return cell.site.voronoiId;
+			cellid = items[iItem].cellid;
+			cell = cells[cellid];
+			if (cell.pointIntersection(x,y) > 0) {
+				return cellid;
 				}
 			}
 		return undefined;

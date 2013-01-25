@@ -2,7 +2,7 @@
 Author: Raymond Hill (rhill@raymondhill.net)
 Contributor: Jesse Morgan (morgajel@gmail.com)
 File: rhill-voronoi-core.js
-Version: 0.96-morg1
+Version: 0.98
 Date: January 21, 2013
 Description: This is my personal Javascript implementation of
 Steven Fortune's algorithm to compute Voronoi diagrams.
@@ -63,6 +63,15 @@ Portions of this software use, depend, or was inspired by the work of:
 *****
 
 History:
+
+0.98 (25 Jan 2013):
+  Added Cell.getBbox() and Cell.pointIntersection() for convenience when using
+  an external treemap.
+
+0.97 (21 Jan 2013):
+  Merged contribution by Jesse Morgan (https://github.com/morgajel):
+  Cell.getNeighbourIds()
+  https://github.com/gorhill/Javascript-Voronoi/commit/4c50f691a301cd6a286359fefba1fab30c8e3b89
 
 0.96 (26 May 2011):
   Returned diagram.cells is now an array, whereas the index of a cell
@@ -487,23 +496,6 @@ Voronoi.prototype.Cell = function(site) {
 	this.halfedges = [];
 	};
 
-// Return a list of the neighbor Ids
-Voronoi.prototype.Cell.prototype.getNeighborIds = function() {
-	var neighbors = [],
-		iHalfedge = this.halfedges.length,
-		edge;
-	while (iHalfedge--){
-		edge = this.halfedges[iHalfedge].edge;
-		if (edge.lSite != null && edge.lSite.voronoiId != this.site.voronoiId) {
-			neighbors.push(edge.lSite.voronoiId);
-			}
-		else if (edge.rSite != null && edge.rSite.voronoiId != this.site.voronoiId){
-			neighbors.push(edge.rSite.voronoiId);
-			}
-		}
-	return neighbors;
-}
-
 Voronoi.prototype.Cell.prototype.prepare = function() {
 	var halfedges = this.halfedges,
 		iHalfedge = halfedges.length,
@@ -525,6 +517,87 @@ Voronoi.prototype.Cell.prototype.prepare = function() {
 	// Opera 11 was penalized marginally.
 	halfedges.sort(function(a,b){return b.angle-a.angle;});
 	return halfedges.length;
+	};
+
+// Return a list of the neighbor Ids
+Voronoi.prototype.Cell.prototype.getNeighborIds = function() {
+	var neighbors = [],
+		iHalfedge = this.halfedges.length,
+		edge;
+	while (iHalfedge--){
+		edge = this.halfedges[iHalfedge].edge;
+		if (edge.lSite != null && edge.lSite.voronoiId != this.site.voronoiId) {
+			neighbors.push(edge.lSite.voronoiId);
+			}
+		else if (edge.rSite != null && edge.rSite.voronoiId != this.site.voronoiId){
+			neighbors.push(edge.rSite.voronoiId);
+			}
+		}
+	return neighbors;
+	};
+
+// Compute bounding box
+//
+Voronoi.prototype.Cell.prototype.getBbox = function() {
+	var halfedges = this.halfedges,
+		iHalfedge = halfedges.length,
+		xmin = Number.MAX_VALUE,
+		ymin = Number.MAX_VALUE,
+		xmax = Number.MIN_VALUE,
+		ymax = Number.MIN_VALUE;
+	while (iHalfedge--) {
+		v = halfedges[iHalfedge].getStartpoint();
+		vx = v.x;
+		vy = v.y;
+		if (vx < xmin) {xmin = vx;}
+		if (vy < ymin) {ymin = vy;}
+		if (vx > xmax) {xmax = vx;}
+		if (vy > ymax) {ymax = vy;}
+		// we dont need to take into account end point,
+		// since each end point matches a start point
+		}
+	return {
+		x: xmin,
+		y: ymin,
+		width: xmax-xmin,
+		height: ymax-ymin
+		};
+	};
+
+// Return whether a point is inside, on, or outside the cell:
+//   -1: point is outside the perimeter of the cell
+//    0: point is on the perimeter of the cell
+//    1: point is inside the perimeter of the cell
+//
+Voronoi.prototype.Cell.prototype.pointIntersection = function(x, y) {
+	// Check if point in polygon. Since all polygons of a Voronoi
+	// diagram are convex, then:
+	// http://paulbourke.net/geometry/polygonmesh/
+	// Solution 3 (2D):
+	//   "If the polygon is convex then one can consider the polygon
+	//   "as a 'path' from the first vertex. A point is on the interior
+	//   "of this polygons if it is always on the same side of all the
+	//   "line segments making up the path. ...
+	//   "(y - y0) (x1 - x0) - (x - x0) (y1 - y0)
+	//   "if it is less than 0 then P is to the right of the line segment,
+	//   "if greater than 0 it is to the left, if equal to 0 then it lies
+	//   "on the line segment"
+	var halfedges = this.halfedges,
+		iHalfedge = halfedges.length,
+		p0, p1, r;
+	while (iHalfedge--) {
+		halfedge = halfedges[iHalfedge];
+		p0 = halfedge.getStartpoint();
+		p1 = halfedge.getEndpoint();
+		r = (y-p0.y)*(p1.x-p0.x)-(x-p0.x)*(p1.y-p0.y);
+		if (!r) {
+			return 0;
+			}
+		if (r > 0) {
+			return -1;
+			}
+		}
+	return 1;
 	};
 
 // ---------------------------------------------------------------------------
