@@ -1460,6 +1460,23 @@ Voronoi.prototype.closeCells = function(bbox) {
 		}
 	};
 
+// http://www.wikihow.com/Calculate-the-Area-of-a-Polygon
+Voronoi.prototype.computeAreas = function() {
+    for (var i = 0 ; i < this.cells.length ; i++){
+        var Stotal=0
+        var Ttotal=0
+        var cell=this.cells[i];
+        for ( var j = 0 ; j < cell.halfedges.length ; j++ ) {
+            var vertexa = cell.halfedges[j].getStartpoint();
+            var vertexb = cell.halfedges[j].getEndpoint();
+            Stotal+=vertexa.x*vertexb.y
+            Ttotal+=vertexa.y*vertexb.x
+        }
+        cell.area=(Ttotal-Stotal)/2
+    }
+    
+}
+
 // ---------------------------------------------------------------------------
 // Top-level Fortune loop
 
@@ -1533,7 +1550,7 @@ Voronoi.prototype.compute = function(sites, bbox) {
 
 	//   add missing edges in order to close opened cells
 	this.closeCells(bbox);
-
+    this.computeAreas();
 	// to measure execution time
 	var stopTime = new Date();
 
