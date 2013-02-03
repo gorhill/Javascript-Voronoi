@@ -82,7 +82,6 @@ var VoronoiDemo = {
 			});
 		var cells = this.diagram.cells,
 			iCell = cells.length;
-		// iterate through all cells
 		while (iCell--) {
 			bbox = cells[iCell].getBbox();
 			bbox.cellid = iCell;
@@ -226,6 +225,7 @@ var VoronoiDemo = {
 <li><a href="rhill-voronoi-demo2.php">Demo 2: a bit of interactivity</a>
 <li><a href="rhill-voronoi-demo3.php">Demo 3: Fancy tiling</a>
 <li><b>Demo 4: Looking up a Voronoi cell using a quadtree</b>
+<li><a href="rhill-voronoi-demo5.php">Demo 5: Lloyd's relaxation</a>
 <li><a href="http://www.raymondhill.net/blog/?p=458#comments">Comments</a>
 </ul></p>
 <h4 class="divhdr">Sites generator</h4>

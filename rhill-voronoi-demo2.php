@@ -165,6 +165,7 @@ var VoronoiDemo = {
 <li><b>Demo 2: a bit of interactivity</b>
 <li><a href="rhill-voronoi-demo3.php">Demo 3: Fancy tiling</a>
 <li><a href="rhill-voronoi-demo4.php">Demo 4: Looking up a Voronoi cell using a quadtree</a>
+<li><a href="rhill-voronoi-demo5.php">Demo 5: Lloyd's relaxation</a>
 <li><a href="http://www.raymondhill.net/blog/?p=458#comments">Comments</a>
 </ul></p>
 <h4 class="divhdr">Sites generator</h4>

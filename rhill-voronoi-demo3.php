@@ -578,6 +578,7 @@ window.addEvent('domready',function(){VoronoiDemo.init();});
 <li><a href="rhill-voronoi-demo2.php">Demo 2: a bit of interactivity</a>
 <li><b>Demo 3: Fancy tiling</b>
 <li><a href="rhill-voronoi-demo4.php">Demo 4: Looking up a Voronoi cell using a quadtree</a>
+<li><a href="rhill-voronoi-demo5.php">Demo 5: Lloyd's relaxation</a>
 <li><a href="http://www.raymondhill.net/blog/?p=458#comments">Comments</a>
 </ul></p>
 <div class="pane" id="canvasParent">
