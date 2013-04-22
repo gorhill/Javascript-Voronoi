@@ -3,8 +3,8 @@
 A Javascript implementation of Steven J. Fortune's algorithm to
 efficiently compute Voronoi diagrams. The Voronoi object's purpose is
 to solely compute a Voronoi diagram, it is completely standalone, with
-no dependency on external code: it contains no rendering code, that is
-left to the user of the library. MIT license.
+no dependency on external code: it contains no rendering code: that is
+left to the user of the library.
 
 ## Core files
 
@@ -116,10 +116,13 @@ Voronoi.Edge
 ```
 
 * ```lSite```: the Voronoi site object at the left of this ```Voronoi.Edge```
-object.
+object. The site object is just a reference to a site in the array of sites
+supplied by the user when ```Voronoi.compute()``` was called.
 
 * ```rSite```: the Voronoi site object at the right of this ```Voronoi.Edge```
-object (can be null, when this is a border edge).
+object (can be null, when this is a border edge). The site object is just a
+reference to a site in the array of sites supplied by the user when
+```Voronoi.compute()``` was called.
 
 * ```va```: a ```Voronoi.Vertex``` object with an ```x``` and a ```y```
 property defining the start point (relative to the Voronoi site on
@@ -157,10 +160,10 @@ mind halfedges are always countercockwise.
 
 ## License
 
-Copyright (c) 2010-2013 Raymond Hill
+Copyright (c) 2010-2013 Raymond Hill 
 https://github.com/gorhill/Javascript-Voronoi
 
-Licensed under The MIT License
+Licensed under The MIT License 
 http://en.wikipedia.org/wiki/MIT_License
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
