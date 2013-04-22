@@ -1,5 +1,5 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+<!DOCTYPE html>
+<html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
 <title>Javascript implementation of Steven Fortune's algorithm to compute Voronoi diagrams: Demo 1</title>
@@ -16,7 +16,7 @@ h4 {font-size:14px;margin:0.5em 0 0 0;border:0;border-bottom:solid 1px #c9d7f1;p
 #voronoiCode {font:11px monospace;overflow:auto;color:#666;}
 #voronoiCode span {color:green;font-weight:bold;}
 </style>
-<script type="text/javascript">
+<script id="script" type="text/javascript">
 <!--
 var VoronoiDemo = {
 
@@ -117,6 +117,7 @@ var VoronoiDemo = {
 <li><a href="rhill-voronoi-demo2.php">Demo 2: a bit of interactivity</a>
 <li><a href="rhill-voronoi-demo3.php">Demo 3: Fancy tiling</a>
 <li><a href="rhill-voronoi-demo4.php">Demo 4: Looking up a Voronoi cell using a quadtree</a>
+<li><a href="rhill-voronoi-demo5.php">Demo 5: Lloyd's relaxation</a>
 <li><a href="http://www.raymondhill.net/blog/?p=458#comments">Comments</a>
 </ul></p>
 <h4 class="divhdr">Sites generator</h4>
@@ -137,102 +138,22 @@ var VoronoiDemo = {
 <div class="divinfo" id="voronoiCode">
 <pre>
 <span>&lt;script type=&quot;text/javascript&quot; src=&quot;<a href="rhill-voronoi-core.js" target="_blank">rhill-voronoi-core.js</a>&quot;&gt;&lt;/script&gt;</span>
-
 ...
-
-<?php
-echo htmlentities(<<<EOT
-<script type="text/javascript">
-<!--
-var VoronoiDemo = {
-
-	voronoi: new Voronoi(),
-	sites: [],
-	diagram: null,
-	margin: 50,
-	canvas: null,
-	bbox: {xl:0,xr:800,yt:0,yb:600},
-
-	init: function() {
-		this.canvas = document.getElementById('voronoiCanvas');
-		this.randomSites(100,true);
-		this.render();
-		},
-
-	clearSites: function() {
-		this.sites = [];
-		this.diagram = this.voronoi.compute(this.sites, this.bbox);
-		this.updateStats();
-		},
-
-	randomSites: function(n,clear) {
-		if (clear) {this.sites = [];}
-		// create vertices
-		var xo = this.margin;
-		var dx = this.canvas.width-this.margin*2;
-		var yo = this.margin;
-		var dy = this.canvas.height-this.margin*2;
-		for (var i=0; i<n; i++) {
-			this.sites.push({x:self.Math.round((xo+self.Math.random()*dx)*10)/10,y:self.Math.round((yo+self.Math.random()*dy)*10)/10});
-			}
-		this.diagram = this.voronoi.compute(this.sites, this.bbox);
-		this.updateStats();
-		},
-
-	updateStats: function() {
-		if (!this.diagram) {return;}
-		var e = document.getElementById('voronoiStats');
-		if (!e) {return;}
-		e.innerHTML = '('+this.diagram.cells.length+' Voronoi cells computed from '+this.sites.length+' Voronoi sites in '+this.diagram.execTime+' ms &ndash; rendering <i>not</i> included)';
-		},
-
-	render: function() {
-		var ctx = this.canvas.getContext('2d');
-		// background
-		ctx.globalAlpha = 1;
-		ctx.beginPath();
-		ctx.rect(0,0,this.canvas.width,this.canvas.height);
-		ctx.fillStyle = 'white';
-		ctx.fill();
-		ctx.strokeStyle = '#888';
-		ctx.stroke();
-		// voronoi
-		if (!this.diagram) {return;}
-		// edges
-		ctx.beginPath();
-		ctx.strokeStyle='#000';
-		var edges = this.diagram.edges,
-			iEdge = edges.length,
-			edge, v;
-		while (iEdge--) {
-			edge = edges[iEdge];
-			v = edge.va;
-			ctx.moveTo(v.x,v.y);
-			v = edge.vb;
-			ctx.lineTo(v.x,v.y);
-			}
-		ctx.stroke();
-		// sites
-		ctx.beginPath();
-		ctx.fillStyle = '#44f';
-		var sites = this.sites,
-			iSite = sites.length;
-		while (iSite--) {
-			v = sites[iSite];
-			ctx.rect(v.x-2/3,v.y-2/3,2,2);
-			}
-		ctx.fill();
-		},
-	};
-// -->
-</script>
-EOT
-, ENT_QUOTES);
-?>
-
+<div id="scriptContainer"></div>
 ...
 </pre>
 </div>
 </div>
+<script>
+(function(){
+var srcElem = document.getElementById("script");
+if (srcElem) {
+    var dstElem = document.getElementById("scriptContainer");
+    if (dstElem) {
+        dstElem.innerText = srcElem.innerHTML;
+        }
+    }
+})();
+</script>
 </body>
 </html>
