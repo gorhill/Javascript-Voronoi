@@ -63,25 +63,28 @@ var diagram = voronoi.compute(vertices, bbox);
 The returned 'diagram' variable is a Javascript object with the
 following properties:
 
-  ```diagram.vertices```:
-    An array of unordered, unique ```Voronoi.Vertex``` objects making up the
-    Voronoi diagram. These ```Voronoi.Vertex``` are used by ```Voronoi.Edge```.
+```diagram.vertices```
 
-  ```diagram.edges```:
-    An array of unordered, unique ```Voronoi.Edge``` objects making up the
-    Voronoi diagram. ```Voronoi.Edges``` are defined by two vertices,
-    ```va``` and ```vb```,
-	which vertices are shared by connected edges. This mean that
-	if you change one vertex belonging to an edge, other connected edges
-	will also be changed.
+An array of unordered, unique ```Voronoi.Vertex``` objects making up the
+Voronoi diagram. These ```Voronoi.Vertex``` are used by ```Voronoi.Edge```.
 
-  ```diagram.cells```:
-    An array of ```Voronoi.Cell``` objects making up the Voronoi diagram. A
-    ```Voronoi.Cell``` object might have an empty array of ```halfedges```,
-    meaning no Voronoi cell could be computed for a particular cell.
+```diagram.edges```
 
-  ```diagram.execTime```:
-    The time it took to compute the Voronoi diagram, in milliseconds.
+An array of unordered, unique ```Voronoi.Edge``` objects making up the
+Voronoi diagram. ```Voronoi.Edges``` are defined by two vertices,
+```va``` and ```vb```, which vertices are shared by connected edges. This mean
+that if you change one vertex belonging to an edge, other connected edges
+will also be changed.
+
+```diagram.cells```
+
+An array of ```Voronoi.Cell``` objects making up the Voronoi diagram. A
+```Voronoi.Cell``` object might have an empty array of ```halfedges```,
+meaning no Voronoi cell could be computed for a particular cell.
+
+```diagram.execTime```
+
+The time it took to compute the Voronoi diagram, in milliseconds.
 
 Objects:
 
