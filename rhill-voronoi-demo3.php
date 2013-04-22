@@ -573,11 +573,11 @@ window.addEvent('domready',function(){VoronoiDemo.init();});
 <a href="https://github.com/gorhill/Javascript-Voronoi"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_red_aa0000.png" alt="Fork me on GitHub"></a>
 <h1>Javascript implementation of Steven Fortune's algorithm to compute Voronoi diagrams<br/>Demo 3: Fancy tiling</h1>
 <div id="divroot">
-<p style="margin-top:0;margin-bottom:0"><a href="/voronoi/rhill-voronoi.php">&lt; Back to main page</a><ul style="margin-top:0">
-<li><a href="rhill-voronoi-demo1.php">Demo 1: measuring peformance</a>
-<li><a href="rhill-voronoi-demo2.php">Demo 2: a bit of interactivity</a>
+<p style="margin-top:0;margin-bottom:0"><a href="/voronoi/rhill-voronoi.html">&lt; Back to main page</a><ul style="margin-top:0">
+<li><a href="rhill-voronoi-demo1.html">Demo 1: measuring peformance</a>
+<li><a href="rhill-voronoi-demo2.html">Demo 2: a bit of interactivity</a>
 <li><b>Demo 3: Fancy tiling</b>
-<li><a href="rhill-voronoi-demo4.php">Demo 4: Looking up a Voronoi cell using a quadtree</a>
+<li><a href="rhill-voronoi-demo4.html">Demo 4: Looking up a Voronoi cell using a quadtree</a>
 <li><a href="rhill-voronoi-demo5.html">Demo 5: Lloyd's relaxation</a>
 <li><a href="http://www.raymondhill.net/blog/?p=458#comments">Comments</a>
 </ul></p>

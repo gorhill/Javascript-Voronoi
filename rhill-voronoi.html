@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<title>Javascript implementation of Steven J. Fortune's algorithm to compute Voronoi diagrams</title>
+<meta name="Keywords" lang="en" content="voronoi, fortune, javascript, raymond hill"/>
+<!--[if lte IE 8]><script type="text/javascript" src="excanvas/excanvas.compiled.js"></script><![endif]-->
+<script type="text/javascript" src="rhill-voronoi.js"></script>
+<style type="text/css">
+body {font-family:tahoma,verdana,arial;font-size:13px;margin:0;padding:0}
+body > div {margin-left:4px;margin-right:4px;}
+body > div > div {margin:0;border:1px solid #ccc;border-top:0;padding:4px;}
+h1 {margin:0 0 0.5em 0;padding: 4px 5em 4px 4px;font:bold large sans-serif;background-color:#c9d7f1;}
+h4 {font-size:14px;margin:0.5em 0 0 0;border:0;border-bottom:solid 1px #c9d7f1;padding:2px;background-color:#e5ecf9;}
+h4 > span {cursor:pointer}
+textarea {font-size:11px;color:gray}
+table {padding:0;border:1px solid #eee}
+table tr:first-child {background-color:#e4f4e4;font-weight:bold;}
+table tr:first-child ~ tr:nth-child(odd) {background-color:#f4f4f4}
+table td {margin:0;padding:2px;border:0;vertical-align:top;background-color:transparent;}
+#canvasParent {margin-top:0;margin-bottom:1em;padding:0;border:0}
+</style>
+</head>
+<body onload="Voronoi.init();">
+<a href="https://github.com/gorhill/Javascript-Voronoi"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_red_aa0000.png" alt="Fork me on GitHub"></a>
+<h1>Javascript implementation of Steven J. Fortune's algorithm to compute Voronoi diagrams</h1>
+<div id="divroot" style="width:800px;">
+<p style="margin-top:0;margin-bottom:0"><b>Main page</b><ul style="margin-top:0">
+<li><a href="rhill-voronoi-demo1.html">Demo 1: measuring peformance</a>
+<li><a href="rhill-voronoi-demo2.html">Demo 2: a bit of interactivity</a>
+<li><a href="rhill-voronoi-demo3.php">Demo 3: Fancy tiling</a>
+<li><a href="rhill-voronoi-demo4.html">Demo 4: Looking up a Voronoi cell using a quadtree</a>
+<li><a href="rhill-voronoi-demo5.html">Demo 5: Lloyd's relaxation</a>
+<li><a href="http://www.raymondhill.net/blog/?p=458#comments">Comments</a>
+</ul></p>
+<h4 class="divhdr">Intro</h4>
+<div class="divinfo" id="voronoiIntro">
+<p>See my <a href="http://www.raymondhill.net/blog/?p=458">blog post</a> regarding this page. This page uses an out of date version (and customized to serve as a tutorial of Fortune's algorithm) of the Javascript Voronoi object. However the demo pages listed above use the latest version.</p>
+</div>
+<h4 class="divhdr">Sites generator <span id="voronoiGeneratorCollapse">&#9653;</span></h4>
+<div class="divinfo" id="voronoiGenerator">
+<input type="button" value="Generate" onclick="Voronoi.clearSites();Voronoi.generateSites(parseInt(document.getElementById('voronoiNumberSites').value,10));"/> or <input type="button" value="Add" onclick="Voronoi.generateSites(parseInt(document.getElementById('voronoiNumberSites').value,10));"/><input id="voronoiNumberSites" type="text" value="100" size="5" maxlength="5"/> sites randomly (Warning: performance might suffer the more sites you add.)<br/>
+<div style="display:inline-block;vertical-align:top;"><input id="voronoiParseSites" type="button" value="Parse as sites" onclick="Voronoi.parseSites(document.getElementById('voronoiUserInput').value);"/><br/>
+<input id="voronoiParseLattices" type="button" value="Parse as lattices" onclick="Voronoi.parseLattices(document.getElementById('voronoiUserInput').value);"/></div>
+<div style="display:inline-block;vertical-align:top;"><textarea id="voronoiUserInput" rows="4" cols="80">Any non-digit character is interpreted as a separator. Sites: The input is scanned for consecutive pairs of values which are interpreted as (x,y). Lattices: The input is scanned for consecutive quadruplets of values which are interpreted as (offset x, offset y, delta x, delta y). Example, try: 0,0,60,100,30,50,60,100</textarea></div>
+<input id="voronoiClearSites" type="button" value="Clear all sites" onclick="Voronoi.clearSites();"/>
+</div>
+<h4 class="divhdr">Canvas <span id="voronoiCanvasControlsCollapse">&#9653;</span></h4>
+<div id="voronoiCanvasControls">
+<div style="width:80%;margin:0;border:0;display:inline-block;vertical-align:top;"><input id="voronoiCanvasSize" type="button" value="Set" onclick="Voronoi.setCanvasSize(parseInt(document.getElementById('voronoiWidth').value,10),parseInt(document.getElementById('voronoiHeight').value,10));Voronoi.setCanvasMargin(parseInt(document.getElementById('voronoiCanvasMargin').value,10));document.getElementById('divroot').style.width=String(Math.max(Voronoi.canvas.width,800))+'px'"/> canvas W &times; H to <input id="voronoiWidth" type="text" value="800" size="4" maxlength="4" /> pixels &times; <input id="voronoiHeight" type="text" value="600" size="4" maxlength="4" /> pixels, with a margin of <input id="voronoiCanvasMargin" type="text" value="0" size="2" maxlength="2" /> pixels.</div>
+<div style="width:19%;margin:0;border:0;display:inline-block;vertical-align:top;text-align:right">
+<input id="voronoiColourize" type="button" value="Colourize" onclick="Voronoi.drawCells();"/></div>
+</div>
+<div id="canvasParent">
+<noscript>You need to enable Javascript in your browser for this page to display properly.</noscript>
+<canvas id="voronoiCanvas" style="cursor:crosshair" width="800" height="600"></canvas>
+<div id="voronoiNoCanvasAlert" style="display:none;padding:1em;background-color:#fcc;color:black;">
+<p>Your browser doesn't support the HTML5 &lt;canvas&gt; element technology.</p>
+<p>See <a target="_blank" href="http://en.wikipedia.org/wiki/Canvas_(HTML_element)">Wikipedia</a> for information on which browsers support the <u>HTML5 &lt;canvas&gt;</u> technology.</p>
+</div>
+</div>
+<h4 class="divhdr">Event queue</h4>
+<div class="divinfo">
+<div style="width:49%;margin:0;border:0;display:inline-block;">
+<input id="voronoiProcessAll" type="button" value="Process all" onclick="Voronoi.processQueueAll();"/><br/>
+<input id="voronoiProcessOne" type="button" value="Process one" onclick="Voronoi.processQueueOne();Voronoi.draw();Voronoi.dumpBeachline();"/> (down arrow works too)<br/>
+<input id="voronoiProcessNDo" type="button" value="Process" onclick="Voronoi.processQueueN(parseInt(document.getElementById('voronoiProcessN').value,10));Voronoi.draw();Voronoi.dumpBeachline();"/> <input id="voronoiProcessN" type="text" value="10" size="4" maxlength="4"/><br/>
+<input id="voronoiReset" type="button" value="Reset" onclick="Voronoi.reset();"/>
+</div>
+<div style="width:49%;margin:0;border:0;display:inline-block;vertical-align:top">
+<input id="voronoiMoveSweepline" type="button" value="Move sweep line" onclick="Voronoi.processUpTo(Voronoi.sweep+parseInt(document.getElementById('voronoiMoveSweeplineN').value,10));Voronoi.draw();Voronoi.dumpBeachline();"/> <input id="voronoiMoveSweeplineN" type="text" value="4" size="3" maxlength="3"/> pixel(s)<br/>
+<input id="voronoiAnimateSweepline" type="button" value="Animate sweep line" onclick="VoronoiAnimate(parseInt(document.getElementById('voronoiMoveSweeplineN').value,10),parseInt(document.getElementById('voronoiAnimateSweeplineDelay').value,10));document.getElementById('voronoiAnimateSweeplineDelay').value=VoronoiAnimateDelay;"/> every <input id="voronoiAnimateSweeplineDelay" type="text" value="100" size="4" maxlength="4"/> ms <input id="voronoiAnimateSweeplineStop" type="button" value="Stop" onclick="VoronoiAnimateStop();"/><br/></div>
+</div>
+<h4 class="divhdr">Scrutinize...</h4>
+<div class="divinfo">
+<!-- <input id="voronoiDumpBeachline" type="button" value="Examine beachline"/>&nbsp;<input id="voronoiDumpVertices" type="button" value="Examine vertices"/>&nbsp;<input id="voronoiDumpEdges" type="button" value="Examine edges"/>&nbsp;<input id="voronoiDumpPolygons" type="button" value="Examine polygons"/> -->
+Red beach sections are collapsing (meaning there is a Fortune circle event associated with them), while green beach sections are expanding. When all the Fortune events have been processed, a beachline most likely still exists, which means the start and/or end points of the edges implied by each pair of beach sections are not connected, in which case we must &lsquo;manually&rsquo; connect these dangling lines to the bounding box, or discard them if they are outside the viewport.
+<div id="console" style="margin-top:1em;margin-bottom:0;margin-left:1em;margin-right:0"></div>
+</div>
+<h4 class="divhdr">Portions of this software are based on, or depend on, or are inspired from the work of...</h4>
+<div class="divinfo">
+<ul style="margin-top:0;margin-bottom:0">
+<li><a target="_blank" href="http://en.wikipedia.org/wiki/Fortune%27s_Algorithm">&ldquo;Fortune's algorithm&rdquo;</a> by <a href="http://ect.bell-labs.com/who/sjf/">Steven Fortune</a>: For his clever algorithm to compute Voronoi diagrams. (<a href="http://ima.udg.es/~sellares/ComGeo/Vor2D_1.ppt">Powerpoint detailing the algorithm</a>)</li>
+<li><a href="http://alecmce.com/as3/parabolas-and-quadratic-bezier-curves">Alec McEachran's code</a> to translate a parabola's focal &amp; directrix into parameters for <a href="http://en.wikipedia.org/wiki/Canvas_element">html5 <code>&lt;canvas&gt;</code></a>' <code>quadraticCurveTo()</code> method. It occurred to me I could use a <a href="http://en.wikipedia.org/wiki/B%C3%A9zier_curve">Bézier curve</a> to draw a parabolic front, and when I plugged "bézier from focus directrix" in a search engine to find out if someone already went through this, Alec's site was on the first page of results, and his tutorial and <a href="http://github.com/alecmce/as3geometry/blob/master/src/as3geometry/geom2D/ui/ParabolaDrawer.as">accompanying code</a> worked like a charm. His code allows for parabolas with any orientation, so it could be simplified for the current case where parabolas are always oriented vertical and upward.</li>
+<li><a target="_blank" href="http://www.skytopia.com/project/articles/compsci/clipping.html">&ldquo;The Liang-Barsky line clipping algorithm in a nutshell!&rdquo;</a>, to efficiently clip a line within a rectangle.</li>
+<!--[if IE]>
+<li><a href="http://code.google.com/p/explorercanvas/">excanvas.js</a>: To simulate support of HTML5 <a href="http://en.wikipedia.org/wiki/Canvas_element"><code>&lt;canvas&gt;</code></a> element in Microsoft's Internet Explorer.</li>
+<![endif]-->
+</ul>
+</div>
+</div>
+<script type="text/javascript">
+(function(){
+var els=document.querySelectorAll('h4 > span');
+for (var i=0; i<els.length; i++){
+	var el=els[i];
+	el.onclick=function(){
+		var id=this.id.replace('Collapse','');
+		var div=document.getElementById(id);
+		var expanded=div.style.display=='';
+		div.style.display=expanded?'none':'';
+		this.innerHTML=expanded?'&#9663;':'&#9653;';
+		};
+	}
+})();
+</script>
+</body>
+</html>

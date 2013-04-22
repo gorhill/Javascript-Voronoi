@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-<title>Javascript implementation of Steven Fortune's algorithm to compute Voronoi diagrams: Demo 5</title>
+<title>Javascript implementation of Steven Fortune's algorithm to compute Voronoi diagrams: Demo 4</title>
 <meta name="Keywords" lang="en" content="voronoi, fortune, javascript, raymond hill"/>
 <!--[if lte IE 8]><script type="text/javascript" src="excanvas/excanvas.compiled.js"></script><![endif]-->
 <script type="text/javascript" src="rhill-voronoi-core.min.js"></script>
@@ -20,27 +20,29 @@ h4 {font-size:14px;margin:0.5em 0 0 0;border:0;border-bottom:solid 1px #c9d7f1;p
 <script id="script" type="text/javascript">
 var VoronoiDemo = {
 	voronoi: new Voronoi(),
+	sites: [],
 	diagram: null,
 	margin: 0.1,
 	canvas: null,
 	bbox: {xl:0,xr:800,yt:0,yb:600},
-	sites: [],
-	timeoutDelay: 100,
+	lastCell: undefined,
+	treemap: null,
 
 	init: function() {
 		this.canvas = document.getElementById('voronoiCanvas');
 		this.randomSites(100,true);
+		this.render();
 		},
 
 	clearSites: function() {
-		this.compute([]);
+		this.sites = [];
+		this.treemap = null;
+		this.diagram = this.voronoi.compute(this.sites, this.bbox);
+		this.updateStats();
 		},
 
-	randomSites: function(n, clear) {
-		var sites = [];
-		if (!clear) {
-			sites = this.sites.slice(0);
-			}
+	randomSites: function(n,clear) {
+		if (clear) {this.sites = [];}
 		// create vertices
 		var xmargin = this.canvas.width*this.margin,
 			ymargin = this.canvas.height*this.margin,
@@ -49,108 +51,17 @@ var VoronoiDemo = {
 			yo = ymargin,
 			dy = this.canvas.height-ymargin*2;
 		for (var i=0; i<n; i++) {
-			sites.push({x:self.Math.round((xo+self.Math.random()*dx)*10)/10,y:self.Math.round((yo+self.Math.random()*dy)*10)/10});
+			this.sites.push({x:self.Math.round((xo+self.Math.random()*dx)*10)/10,y:self.Math.round((yo+self.Math.random()*dy)*10)/10});
 			}
-		this.compute(sites);
-		// relax sites
-		if (this.timeout) {
-			clearTimeout(this.timeout)
-			this.timeout = null;
-			}
-		var me = this;
-		this.timeout = setTimeout(function(){
-			me.relaxSites();
-			}, this.timeoutDelay);
-		},
-
-	relaxSites: function() {
-		if (!this.diagram) {return;}
-		var cells = this.diagram.cells,
-			iCell = cells.length,
-			cell,
-			site, sites = [],
-			again = false,
-			p, dist;
-		while (iCell--) {
-			cell = cells[iCell];
-			p = Math.random();
-			// probability of apoptosis
-			if (p < 0.02) {
-				continue;
-				}
-			site = this.cellCentroid(cell);
-			dist = this.distance(site, cell.site);
-			again = again || dist > 1;
-			// don't relax too fast
-			if (dist > 2) {
-				site.x = (site.x+cell.site.x)/2;
-				site.y = (site.y+cell.site.y)/2;
-				}
-			// probability of mytosis
-			if (p > 0.98) {
-				dist /= 2;
-				sites.push({
-					x: site.x+(site.x-cell.site.x)/dist,
-					y: site.y+(site.y-cell.site.y)/dist,
-					});
-				}
-			sites.push(site);
-			}
-		this.compute(sites);
-		if (again) {
-			var me = this;
-			this.timeout = setTimeout(function(){
-				me.relaxSites();
-				}, this.timeoutDelay);
-			}
-		},
-
-	distance: function(a, b) {
-		var dx = a.x-b.x,
-			dy = a.y-b.y;
-		return Math.sqrt(dx*dx+dy*dy);
-		},
-
-	cellArea: function(cell) {
-		var area = 0,
-			halfedges = cell.halfedges,
-			iHalfedge = halfedges.length,
-			halfedge,
-			p1, p2;
-		while (iHalfedge--) {
-			halfedge = halfedges[iHalfedge];
-			p1 = halfedge.getStartpoint();
-			p2 = halfedge.getEndpoint();
-			area += p1.x * p2.y;
-			area -= p1.y * p2.x;
-			}
-		area /= 2;
-		return area;
-		},
-
-	cellCentroid: function(cell) {
-		var x = 0, y = 0,
-			halfedges = cell.halfedges,
-			iHalfedge = halfedges.length,
-			halfedge,
-			v, p1, p2;
-		while (iHalfedge--) {
-			halfedge = halfedges[iHalfedge];
-			p1 = halfedge.getStartpoint();
-			p2 = halfedge.getEndpoint();
-			v = p1.x*p2.y - p2.x*p1.y;
-			x += (p1.x+p2.x) * v;
-			y += (p1.y+p2.y) * v;
-			}
-		v = this.cellArea(cell) * 6;
-		return {x:x/v,y:y/v};
-		},
-
-	compute: function(sites) {
-		this.sites = sites;
-		this.diagram = this.voronoi.compute(sites, this.bbox);
+		this.treemap = null;
+		this.diagram = this.voronoi.compute(this.sites, this.bbox);
 		this.updateStats();
-		this.render();
+		},
+
+	recompute: function() {
+		this.treemap = null;
+		this.diagram = this.voronoi.compute(this.sites, this.bbox);
+		this.updateStats();
 		},
 
 	updateStats: function() {
@@ -158,6 +69,108 @@ var VoronoiDemo = {
 		var e = document.getElementById('voronoiStats');
 		if (!e) {return;}
 		e.innerHTML = '('+this.diagram.cells.length+' Voronoi cells computed from '+this.diagram.cells.length+' Voronoi sites in '+this.diagram.execTime+' ms &ndash; rendering <i>not</i> included)';
+		},
+
+	buildTreemap: function() {
+		var treemap = new QuadTree({
+			x: this.bbox.xl,
+			y: this.bbox.yt,
+			width: this.bbox.xr-this.bbox.xl,
+			height: this.bbox.yb-this.bbox.yt
+			});
+		var cells = this.diagram.cells,
+			iCell = cells.length;
+		while (iCell--) {
+			bbox = cells[iCell].getBbox();
+			bbox.cellid = iCell;
+			treemap.insert(bbox);
+			}
+		return treemap;
+		},
+
+	cellUnderMouse: function(ev) {
+		if (!this.diagram) {return;}
+		var canvas = document.getElementById('voronoiCanvas');
+		if (!canvas) {
+			return;
+			}
+		// >>> http://www.quirksmode.org/js/events_properties.html#position
+		var x = 0,
+			y = 0;
+		if (!ev) {
+			ev = window.event;
+			}
+		if (ev.pageX || ev.pageY) {
+			x = ev.pageX;
+			y = ev.pageY;
+			}
+		else if (e.clientX || e.clientY) {
+			x = ev.clientX + document.body.scrollLeft + document.documentElement.scrollLeft;
+			y = ev.clientY + document.body.scrollTop + document.documentElement.scrollTop;
+			}
+		// <<< http://www.quirksmode.org/js/events_properties.html#position
+		x -= canvas.offsetLeft;
+		y -= canvas.offsetTop;
+		cellid = this.cellIdFromPoint(x,y);
+		if (this.lastCell !== cellid) {
+			if (this.lastCell !== undefined) {
+				this.renderCell(this.lastCell, '#fff', '#000');
+				}
+			if (cellid !== undefined) {
+				this.renderCell(cellid, '#f00', '#00f');
+				}
+			this.lastCell = cellid;
+			}
+		document.getElementById('voronoiCellid').innerHTML = "(" + x + "," + y + ") = " + cellid;
+		},
+
+	cellIdFromPoint: function(x, y) {
+		// We build the treemap on-demand
+		if (this.treemap === null) {
+			this.treemap = this.buildTreemap();
+			}
+		// Get the Voronoi cells from the tree map given x,y
+		var items = this.treemap.retrieve({x:x,y:y}),
+			iItem = items.length,
+			cells = this.diagram.cells,
+			cell, cellid;
+		while (iItem--) {
+			cellid = items[iItem].cellid;
+			cell = cells[cellid];
+			if (cell.pointIntersection(x,y) > 0) {
+				return cellid;
+				}
+			}
+		return undefined;
+		},
+
+	renderCell: function(id, fillStyle, strokeStyle) {
+		if (id === undefined) {return;}
+		if (!this.diagram) {return;}
+		var cell = this.diagram.cells[id];
+		if (!cell) {return;}
+		var ctx = this.canvas.getContext('2d');
+		ctx.globalAlpha = 1;
+		// edges
+		ctx.beginPath();
+		var halfedges = cell.halfedges,
+			nHalfedges = halfedges.length,
+			v = halfedges[0].getStartpoint();
+		ctx.moveTo(v.x,v.y);
+		for (var iHalfedge=0; iHalfedge<nHalfedges; iHalfedge++) {
+			v = halfedges[iHalfedge].getEndpoint();
+			ctx.lineTo(v.x,v.y);
+			}
+		ctx.fillStyle = fillStyle;
+		ctx.strokeStyle = strokeStyle;
+		ctx.fill();
+		ctx.stroke();
+		// site
+		v = cell.site;
+		ctx.fillStyle = '#44f';
+		ctx.beginPath();
+		ctx.rect(v.x-2/3,v.y-2/3,2,2);
+		ctx.fill();
 		},
 
 	render: function() {
@@ -198,19 +211,18 @@ var VoronoiDemo = {
 		ctx.fill();
 		},
 	};
-// -->
 </script>
 </head>
 <body onload="VoronoiDemo.init();">
 <a href="https://github.com/gorhill/Javascript-Voronoi"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_red_aa0000.png" alt="Fork me on GitHub"></a>
-<h1>Javascript implementation of Steven Fortune's algorithm to compute Voronoi diagrams<br/>Demo 5: Lloyd's relaxation</h1>
+<h1>Javascript implementation of Steven Fortune's algorithm to compute Voronoi diagrams<br/>Demo 4: Looking up a Voronoi cell using a quadtree</h1>
 <div id="divroot" style="width:800px;">
 <p style="margin-top:0;margin-bottom:0"><a href="/voronoi/rhill-voronoi.html">&lt; Back to main page</a><ul style="margin-top:0">
 <li><a href="rhill-voronoi-demo1.html">Demo 1: measuring peformance</a>
 <li><a href="rhill-voronoi-demo2.html">Demo 2: a bit of interactivity</a>
 <li><a href="rhill-voronoi-demo3.php">Demo 3: Fancy tiling</a>
-<li><a href="rhill-voronoi-demo4.html">Demo 4: Looking up a Voronoi cell using a quadtree</a>
-<li><b>Demo 5: Lloyd's relaxation</b>
+<li><b>Demo 4: Looking up a Voronoi cell using a quadtree</b>
+<li><a href="rhill-voronoi-demo5.html">Demo 5: Lloyd's relaxation</a>
 <li><a href="http://www.raymondhill.net/blog/?p=458#comments">Comments</a>
 </ul></p>
 <h4 class="divhdr">Sites generator</h4>
@@ -218,10 +230,10 @@ var VoronoiDemo = {
 <input type="button" value="Generate" onclick="VoronoiDemo.randomSites(parseInt(document.getElementById('voronoiNumberSites').value,10),true);VoronoiDemo.render();"/> or <input type="button" value="Add" onclick="VoronoiDemo.randomSites(parseInt(document.getElementById('voronoiNumberSites').value,10),false);VoronoiDemo.render();"/><input id="voronoiNumberSites" type="text" value="100" size="5" maxlength="5"/> sites randomly (Warning: performance might suffer the more sites you add.)
 <br/><input id="voronoiClearSites" type="button" value="Clear all sites" onclick="VoronoiDemo.clearSites();VoronoiDemo.render();"/>
 </div>
-<h4 class="divhdr">Canvas <span id="voronoiStats" style="font:normal 11px sans"></span> <span style="font:normal 11px sans"></h4>
+<h4 class="divhdr">Canvas <span id="voronoiStats" style="font:normal 11px sans"></span> <span style="font:normal 11px sans"> / Cell id at <span id="voronoiCellid" style="font:normal 11px sans"></span></span></h4>
 <div id="canvasParent">
 <noscript>You need to enable Javascript in your browser for this page to display properly.</noscript>
-<canvas id="voronoiCanvas" width="800" height="600"></canvas>
+<canvas id="voronoiCanvas" width="800" height="600" onclick="VoronoiDemo.recompute();" onmousemove="VoronoiDemo.cellUnderMouse(event);"></canvas>
 <div id="voronoiNoCanvasAlert" style="display:none;padding:1em;background-color:#fcc;color:black;">
 <p>Your browser doesn't support the HTML5 &lt;canvas&gt; element technology.</p>
 <p>See <a target="_blank" href="http://en.wikipedia.org/wiki/Canvas_(HTML_element)">Wikipedia</a> for information on which browsers support the <u>HTML5 &lt;canvas&gt;</u> technology.</p>
@@ -231,6 +243,7 @@ var VoronoiDemo = {
 <div class="divinfo" id="voronoiCode">
 <pre>
 <span>&lt;script type=&quot;text/javascript&quot; src=&quot;<a href="rhill-voronoi-core.js" target="_blank">rhill-voronoi-core.js</a>&quot;&gt;&lt;/script&gt;</span>
+<span>&lt;script type=&quot;text/javascript&quot; src=&quot;<a href="https://github.com/mikechambers/ExamplesByMesh/blob/master/JavaScript/QuadTree/src/QuadTree.js" target="_blank">QuadTree.js</a>&quot;&gt;&lt;/script&gt;</span>
 ...
 <div id="scriptContainer"></div>
 ...
