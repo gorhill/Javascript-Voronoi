@@ -95,13 +95,21 @@ diagram.execTime
 
 The time it took to compute the Voronoi diagram, in milliseconds.
 
-Objects:
+## Public objects
 
 ```
 Voronoi
 ```
 
 The ```Voronoi``` object which computes a Voronoi diagram.
+
+```
+Voronoi.Vertex
+```
+
+* ```x```: no explanation required.
+
+* ```y```: no explanation required.
 
 ```
 Voronoi.Edge
@@ -140,13 +148,12 @@ object.
 * ```edge```: a reference to the unique ```Voronoi.Edge``` object underlying
 this ```Voronoi.Halfedge``` object.
 
-* ```getStartpoint()```: a method returning an object with an ```x``` and a
-```y``` property for the start point of this halfedge. Keep in mind halfedges
-are always countercockwise.
+* ```getStartpoint()```: a method returning a ```Voronoi.Vertex``` of the start
+point of this halfedge. Keep in mind halfedges are always countercockwise.
 
-* ```getEndpoint()```: a method returning an object with an ```x``` and a
-```y``` property for the end point of this halfedge. Keep in mind halfedges are
-always countercockwise.
+* ```getEndpoint()```: a method returning a ```Voronoi.Vertex``` object with
+an ```x``` and a ```y``` property for the end point of this halfedge. Keep in
+mind halfedges are always countercockwise.
 
 ## License
 
