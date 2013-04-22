@@ -47,28 +47,33 @@ the user is responsible for rendering the diagram.
 
 Roughly:
 
-  ```
+```
 var voronoi = new Voronoi();
 var bbox = {xl:0,xr:800,yt:0,yb:600};
-var vertices = [{x:200, y:200}, {x:50, y:250}, {x:400, y:100} /* , ... */];
+var sites = [{x:200, y:200}, {x:50, y:250}, {x:400, y:100} /* , ... */];
 
 // a 'vertex' is an object exhibiting 'x' and 'y' properties. The
 // Voronoi object will add a unique 'voronoiId' property to all
-// vertices. The 'voronoiId' can be used as a key to lookup the
-// associated cell in 'diagram.cells'.
+// sites. The 'voronoiId' can be used as a key to lookup the associated cell
+// in diagram.cells.
 
-var diagram = voronoi.compute(vertices, bbox);
+var diagram = voronoi.compute(sites, bbox);
 ```
 
 The returned 'diagram' variable is a Javascript object with the
 following properties:
 
-```diagram.vertices```
+```
+diagram.vertices
+```
 
 An array of unordered, unique ```Voronoi.Vertex``` objects making up the
-Voronoi diagram. These ```Voronoi.Vertex``` are used by ```Voronoi.Edge```.
+Voronoi diagram. Each ```Voronoi.Vertex``` object in the list is shared by
+many ```Voronoi.Edge``` objects.
 
-```diagram.edges```
+```
+diagram.edges
+```
 
 An array of unordered, unique ```Voronoi.Edge``` objects making up the
 Voronoi diagram. ```Voronoi.Edges``` are defined by two vertices,
@@ -76,49 +81,72 @@ Voronoi diagram. ```Voronoi.Edges``` are defined by two vertices,
 that if you change one vertex belonging to an edge, other connected edges
 will also be changed.
 
-```diagram.cells```
+```
+diagram.cells
+```
 
 An array of ```Voronoi.Cell``` objects making up the Voronoi diagram. A
 ```Voronoi.Cell``` object might have an empty array of ```halfedges```,
 meaning no Voronoi cell could be computed for a particular cell.
 
-```diagram.execTime```
+```
+diagram.execTime
+```
 
 The time it took to compute the Voronoi diagram, in milliseconds.
 
 Objects:
 
-  ```Voronoi```:
-    The ```Voronoi``` object which computes a Voronoi diagram.
+```
+Voronoi
+```
 
-  ```Voronoi.Edge```:
-    ```lSite```: the Voronoi site object at the left of this ```Voronoi.Edge```
-        object.
-    ```rSite```: the Voronoi site object at the right of this ```Voronoi.Edge```
-        object (can be null, when this is a border edge).
-    ```va```: a ```Voronoi.Vertex``` object with an ```x``` and a ```y```
-        property defining the start point (relative to the Voronoi site on
-        the left) of this ```Voronoi.Edge``` object.
-    ```vb```: a ```Voronoi.Vertex``` object with an ```x``` and a ```y```
-        property defining the end point (relative to Voronoi site on the left)
-        of this ```Voronoi.Edge``` object.
+The ```Voronoi``` object which computes a Voronoi diagram.
 
-  ```Voronoi.Cell```:
-    ```site```: the Voronoi site object associated with the Voronoi cell.
-    ```halfedges```: an array of ```Voronoi.Halfedge``` objects, ordered
-        counterclockwise, defining the polygon for this Voronoi cell.
+```
+Voronoi.Edge
+```
 
-  ```Voronoi.Halfedge```:
-    ```site```: the Voronoi site object owning this ```Voronoi.Halfedge```
-        object.
-    ```edge```: a reference to the unique ```Voronoi.Edge``` object underlying
-        this ```Voronoi.Halfedge``` object.
-    ```getStartpoint()```: a method returning an object with an ```x``` and a
-        ```y``` property for the start point of this halfedge. Keep in mind
-        halfedges are always countercockwise.
-    ```getEndpoint()```: a method returning an object with an ```x``` and a
-        ```y``` property for the end point of this halfedge. Keep in mind
-        halfedges are always countercockwise.
+* ```lSite```: the Voronoi site object at the left of this ```Voronoi.Edge```
+object.
+
+* ```rSite```: the Voronoi site object at the right of this ```Voronoi.Edge```
+object (can be null, when this is a border edge).
+
+* ```va```: a ```Voronoi.Vertex``` object with an ```x``` and a ```y```
+property defining the start point (relative to the Voronoi site on
+the left) of this ```Voronoi.Edge``` object.
+
+* ```vb```: a ```Voronoi.Vertex``` object with an ```x``` and a ```y```
+property defining the end point (relative to Voronoi site on the left)
+of this ```Voronoi.Edge``` object.
+
+```
+Voronoi.Cell
+```
+
+* ```site```: the Voronoi site object associated with the Voronoi cell.
+
+* ```halfedges```: an array of ```Voronoi.Halfedge``` objects, ordered
+counterclockwise, defining the polygon for this Voronoi cell.
+
+```
+Voronoi.Halfedge
+```
+
+* ```site```: the Voronoi site object owning this ```Voronoi.Halfedge```
+object.
+
+* ```edge```: a reference to the unique ```Voronoi.Edge``` object underlying
+this ```Voronoi.Halfedge``` object.
+
+* ```getStartpoint()```: a method returning an object with an ```x``` and a
+```y``` property for the start point of this halfedge. Keep in mind halfedges
+are always countercockwise.
+
+* ```getEndpoint()```: a method returning an object with an ```x``` and a
+```y``` property for the end point of this halfedge. Keep in mind halfedges are
+always countercockwise.
 
 ## License
 
