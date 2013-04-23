@@ -9,11 +9,13 @@ left to the user of the library.
 ## Core files
 
 * rhill-voronoi-core.js
-  Where the Voronoi object is implemented. This is a standalone library,
-  there is no dependency.
+
+Where the Voronoi object is implemented. This is a standalone library, there
+is no dependency.
 
 * rhill-voronoi-core.min.js
-  The minimized version (using YUI compressor)
+
+The minimized version (using YUI compressor)
 
 ## Demo files
 
@@ -22,19 +24,23 @@ left to the user of the library.
 * rhill-voronoi-demo3.php
 * rhill-voronoi-demo4.html
 * rhill-voronoi-demo5.html
-  Demo pages to demonstrate usage of the Voronoi object.
+
+Demo pages to demonstrate usage of the Voronoi object.
 
 * excanvas/*
-  Used by demo pages
-  ExplorerCanvas, giving pre-HTML5 Internet Explorer the ability
-  to make sense of HTML5's canvas element. Pulled from
-  http://code.google.com/p/explorercanvas/
+
+Used by demo pages.
+
+ExplorerCanvas, giving pre-HTML5 Internet Explorer the ability to make sense
+of HTML5's canvas element. Pulled from http://code.google.com/p/explorercanvas/
 
 * mootools/*
-  Used by rhill-voronoi-demo3.php
+
+Used by rhill-voronoi-demo3.php
 
 * Above pages available at
-  http://www.raymondhill.net/voronoi/
+
+http://www.raymondhill.net/voronoi/
 
 
 ## Main object: Voronoi
