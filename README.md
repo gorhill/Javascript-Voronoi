@@ -38,9 +38,7 @@ of HTML5's canvas element. Pulled from http://code.google.com/p/explorercanvas/
 
 Used by rhill-voronoi-demo3.php
 
-* Above pages available at
-
-http://www.raymondhill.net/voronoi/
+* Above pages available at http://www.raymondhill.net/voronoi/
 
 
 ## Main object: Voronoi
