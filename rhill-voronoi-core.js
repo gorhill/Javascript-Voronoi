@@ -3,7 +3,7 @@ Copyright (C) 2010-2013 Raymond Hill
 MIT License: See https://github.com/gorhill/Javascript-Voronoi/LICENSE.md
 
 Author: Raymond Hill (rhill@raymondhill.net)
-Contributor: Jesse Morgan (morgajel@gmail.com)
+Contributors: Jesse Morgan (morgajel@gmail.com), Fergus Kelley (fergk@arcolz.net)
 File: rhill-voronoi-core.js
 Version: 0.98
 Date: January 21, 2013
@@ -465,7 +465,6 @@ Voronoi.prototype.Cell.prototype.getNeighborIds = function() {
     };
 
 // Compute bounding box
-//
 Voronoi.prototype.Cell.prototype.getBbox = function() {
     var halfedges = this.halfedges,
         iHalfedge = halfedges.length,
@@ -526,6 +525,45 @@ Voronoi.prototype.Cell.prototype.pointIntersection = function(x, y) {
             }
         }
     return 1;
+    };
+
+// Return the area of the cell
+// Originally from http://www.raymondhill.net/voronoi/rhill-voronoi-demo5.html
+Voronoi.prototype.Cell.prototype.getArea = function() {
+  	var area = 0,
+			halfedges = this.halfedges,
+			iHalfedge = halfedges.length,
+			halfedge,
+			p1, p2;
+		while (iHalfedge--) {
+			halfedge = halfedges[iHalfedge];
+			p1 = halfedge.getStartpoint();
+			p2 = halfedge.getEndpoint();
+			area += p1.x * p2.y;
+			area -= p1.y * p2.x;
+			}
+		area /= 2;
+		return area;
+    };
+
+// Return the centroid of the cell
+// Originally from http://www.raymondhill.net/voronoi/rhill-voronoi-demo5.html
+Voronoi.prototype.Cell.prototype.getCentroid = function() {
+    var x = 0, y = 0,
+    	halfedges = this.halfedges,
+			iHalfedge = halfedges.length,
+			halfedge,
+			v, p1, p2;
+		while (iHalfedge--) {
+			halfedge = halfedges[iHalfedge];
+			p1 = halfedge.getStartpoint();
+			p2 = halfedge.getEndpoint();
+			v = p1.x*p2.y - p2.x*p1.y;
+			x += (p1.x+p2.x) * v;
+			y += (p1.y+p2.y) * v;
+			}
+		v = this.getArea() * 6;//v = this.getArea(cell) * 6;
+		return {x:x/v,y:y/v};
     };
 
 // ---------------------------------------------------------------------------
@@ -1490,3 +1528,45 @@ Voronoi.prototype.compute = function(sites, bbox) {
 
     return diagram;
     };
+
+// ---------------------------------------------------------------------------
+// Lloyd's Relaxation
+// Adapted from http://www.raymondhill.net/voronoi/rhill-voronoi-demo5.html
+Voronoi.prototype.relaxDiagram = function( aDiagram, bbox ) {
+    var cells = aDiagram.cells,
+    	iCell = cells.length,
+			cell,
+			site, sites = [],
+			p, dist;
+		while (iCell--) {
+			cell = cells[iCell];
+			p = Math.random();
+			// probability of apoptosis
+			if (p < 0.02) {
+				continue;
+				}
+			site = cell.getCentroid();
+			dist = this.distance(site, cell.site);
+			// don't relax too fast
+			if (dist > 2) {
+				site.x = (site.x+cell.site.x)/2;
+				site.y = (site.y+cell.site.y)/2;
+				}
+			// probability of mytosis
+			if (p > 0.98) {
+				dist /= 2;
+				sites.push({
+					x: site.x+(site.x-cell.site.x)/dist,
+					y: site.y+(site.y-cell.site.y)/dist,
+					});
+				}
+			sites.push(site);
+			}
+		return this.compute(sites, bbox);
+    };
+    
+Voronoi.prototype.distance = function(a, b) {
+  	var dx = a.x-b.x,
+			dy = a.y-b.y;
+		return Math.sqrt(dx*dx+dy*dy);
+		};
