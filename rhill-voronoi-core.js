@@ -1428,8 +1428,8 @@ Voronoi.prototype.compute = function(sites, bbox) {
     // process queue
     var site = siteEvents.pop(),
         siteid = 0,
-        xsitex = Number.MIN_VALUE, // to avoid duplicate sites
-        xsitey = Number.MIN_VALUE,
+        xsitex, // to avoid duplicate sites
+        xsitey,
         cells = this.cells,
         circle;
 
