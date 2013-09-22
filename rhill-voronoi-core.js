@@ -469,10 +469,10 @@ Voronoi.prototype.Cell.prototype.getNeighborIds = function() {
 Voronoi.prototype.Cell.prototype.getBbox = function() {
     var halfedges = this.halfedges,
         iHalfedge = halfedges.length,
-        xmin = Number.MAX_VALUE,
-        ymin = Number.MAX_VALUE,
-        xmax = Number.MIN_VALUE,
-        ymax = Number.MIN_VALUE;
+        xmin = Infinity,
+        ymin = Infinity,
+        xmax = -Infinity,
+        ymax = -Infinity;
     while (iHalfedge--) {
         v = halfedges[iHalfedge].getStartpoint();
         vx = v.x;
