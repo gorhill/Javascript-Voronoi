@@ -472,7 +472,8 @@ Voronoi.prototype.Cell.prototype.getBbox = function() {
         xmin = Number.MAX_VALUE,
         ymin = Number.MAX_VALUE,
         xmax = Number.MIN_VALUE,
-        ymax = Number.MIN_VALUE;
+        ymax = Number.MIN_VALUE,
+        v, vx, vy;
     while (iHalfedge--) {
         v = halfedges[iHalfedge].getStartpoint();
         vx = v.x;
@@ -512,6 +513,7 @@ Voronoi.prototype.Cell.prototype.pointIntersection = function(x, y) {
     //   "on the line segment"
     var halfedges = this.halfedges,
         iHalfedge = halfedges.length,
+        halfedge,
         p0, p1, r;
     while (iHalfedge--) {
         halfedge = halfedges[iHalfedge];
