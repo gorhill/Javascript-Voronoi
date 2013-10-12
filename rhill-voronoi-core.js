@@ -714,7 +714,7 @@ Voronoi.prototype.leftBreakPoint = function(arc, directrix) {
     if (!plby2) {
         return lfocx;
         }
-    var    hl = lfocx-rfocx,
+    var hl = lfocx-rfocx,
         aby2 = 1/pby2-1/plby2,
         b = hl/plby2;
     if (aby2) {
@@ -1345,7 +1345,7 @@ Voronoi.prototype.closeCells = function(bbox) {
         iCell = cells.length,
         cell,
         iLeft, iRight,
-        halfedges, nHalfedges,
+        halfedges, nHalfedges, nNewEdges,
         edge,
         startpoint, endpoint,
         va, vb,
@@ -1363,6 +1363,7 @@ Voronoi.prototype.closeCells = function(bbox) {
         // does not match the start point of the following halfedge
         halfedges = cell.halfedges;
         nHalfedges = halfedges.length;
+        nNewEdges = 0;
         // special case: only one site, in which case, the viewport is the cell
         // ...
         // all other cases
@@ -1397,11 +1398,34 @@ Voronoi.prototype.closeCells = function(bbox) {
                 edge = this.createBorderEdge(cell.site, va, vb);
                 halfedges.splice(iLeft+1, 0, new this.Halfedge(edge, cell.site, null));
                 nHalfedges = halfedges.length;
+                // rhill 20131011: see https://github.com/gorhill/Javascript-Voronoi/issues/15
+                if ( ++nNewEdges > 4 ) {
+                    throw "Voronoi.closeCells() > " +
+                          "Unable to close Voronoi cell! Finite arithmetic precision likely overwhelmed\n" +
+                          "    (try using coordinates with less significant digits after the decimal point?)";
+                    }
                 }
             iLeft++;
             }
         }
     };
+
+// ---------------------------------------------------------------------------
+// Debugging helper
+/*
+Voronoi.prototype.dumpBeachline = function(y) {
+    console.log('Voronoi.dumpBeachline() > Beachsections, from left to right:');
+    if ( !this.beachline ) {
+        console.log('  None');
+    } else {
+        var bs = this.beachline.getFirst(this.beachline.root);
+        while ( bs ) {
+            console.log('  site %d: xl: %f, xr: %f', bs.site.voronoiId, this.leftBreakPoint(bs, y), this.rightBreakPoint(bs, y));
+            bs = bs.rbNext;
+        }
+    }
+};
+*/
 
 // ---------------------------------------------------------------------------
 // Top-level Fortune loop
