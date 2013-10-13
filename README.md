@@ -99,6 +99,28 @@ diagram.execTime
 
 The time it took to compute the Voronoi diagram, in milliseconds.
 
+Added on October 12, 2013: In order to help improve performance,
+`Voronoi.recycle()` has been added to allow the recycling of a returned Voronoi
+diagram. Usage:
+
+```
+var diagram;
+...
+
+// some kind of loop starting here (whether outright or through a timer)
+...
+
+voronoi.recycle(diagram);
+// diagram.vertices, diagram.edges and diagram.cells can no longer be used!
+diagram = voronoi.compute(sites, bbox);
+
+// do stuff with content of `diagram`
+...
+```
+
+This new method helps performance significantly when re-computing a Voronoi
+diagram, as it saves on memory allocation, and associated garbage collection.
+
 ## Public objects
 
 ```
