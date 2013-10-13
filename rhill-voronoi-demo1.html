@@ -21,14 +21,76 @@ var VoronoiDemo = {
     voronoi: new Voronoi(),
     sites: [],
     diagram: null,
-    margin: 0.1,
+    margin: 0.15,
     canvas: null,
     bbox: {xl:0,xr:800,yt:0,yb:600},
+    benchmarkTimer: null,
+    benchmarkTimes: new Array(50),
+    benchmarkPointer: 0,
+    benchmarkMaxSites: 100,
 
     init: function() {
         this.canvas = document.getElementById('voronoiCanvas');
         this.randomSites(100,true);
         this.render();
+        },
+
+    benchmarkToggle: function() {
+        if ( this.benchmarkTimer ) {
+            this.benchmarkStop();
+            }
+        else {
+            this.benchmarkStart();
+            }
+        },
+
+    benchmarkStart: function() {
+        this.benchmarkMaxSites = Math.floor(parseFloat(document.getElementById('voronoiNumberSites').value));
+        this.benchmarkPointer = 0;
+        this.benchmarkTimer = setTimeout(this.benchmarkDo, 250);
+        document.getElementById('voronoiBenchmark').value = 'Stop';
+        },
+
+    benchmarkDo: function() {
+        var vd = VoronoiDemo;
+        vd.randomSites(vd.benchmarkMaxSites, true);
+        vd.render();
+        vd.benchmarkTimes[vd.benchmarkPointer] = vd.diagram.execTime;
+        vd.benchmarkPointer++;
+        if ( vd.benchmarkPointer < vd.benchmarkTimes.length ) {
+            document.getElementById('benchmarkResult').innerHTML = new Array(vd.benchmarkTimes.length-vd.benchmarkPointer+1).join('.');
+            vd.benchmarkTimer = setTimeout(vd.benchmarkDo, 250);
+            }
+        else {
+            vd.benchmarkStop();
+            }
+        },
+
+    benchmarkStop: function() {
+        if ( this.benchmarkTimer ) {
+            clearTimeout(this.benchmarkTimer);
+            this.benchmarkTimer = null;
+            }
+        var sum = 0;
+        var fastest = Number.MAX_VALUE;
+        var slowest = -Number.MAX_VALUE;
+        this.benchmarkTimes.map(function(v){
+            sum += v;
+            fastest = Math.min(v, fastest);
+            slowest = Math.max(v, slowest);
+            });
+        sum -= fastest;
+        sum -= slowest;
+        var avg = sum / (this.benchmarkPointer-2);
+        document.getElementById('benchmarkResult').innerHTML =
+            'average exec time for ' +
+            this.benchmarkMaxSites +
+            ' sites = ' +
+            avg.toFixed(1) + ' ms ' +
+            ' (' + (avg*1000/this.benchmarkMaxSites).toFixed(1) + ' µs/site)' +
+            ', fastest = ' + fastest + ' ms, slowest = ' + slowest + ' ms.'
+            ;
+        document.getElementById('voronoiBenchmark').value = 'Benchmark';
         },
 
     clearSites: function() {
@@ -47,8 +109,12 @@ var VoronoiDemo = {
             yo = ymargin,
             dy = this.canvas.height-ymargin*2;
         for (var i=0; i<n; i++) {
-            this.sites.push({x:self.Math.round((xo+self.Math.random()*dx)*10)/10,y:self.Math.round((yo+self.Math.random()*dy)*10)/10});
+            this.sites.push({
+                x: xo + Math.random()*dx + Math.random()/dx,
+                y: yo + Math.random()*dy + Math.random()/dy
+                });
             }
+        this.voronoi.recycle(this.diagram);
         this.diagram = this.voronoi.compute(this.sites, this.bbox);
         this.updateStats();
         },
@@ -131,6 +197,7 @@ var VoronoiDemo = {
 <div class="divinfo" id="voronoiGenerator">
 <input type="button" value="Generate" onclick="VoronoiDemo.randomSites(parseInt(document.getElementById('voronoiNumberSites').value,10),true);VoronoiDemo.render();"/> or <input type="button" value="Add" onclick="VoronoiDemo.randomSites(parseInt(document.getElementById('voronoiNumberSites').value,10),false);VoronoiDemo.render();"/><input id="voronoiNumberSites" type="text" value="100" size="5" maxlength="5"/> sites randomly (Warning: performance might suffer the more sites you add.)
 <br/><input id="voronoiClearSites" type="button" value="Clear all sites" onclick="VoronoiDemo.clearSites();VoronoiDemo.render();"/>
+<br/><input id="voronoiBenchmark" type="button" value="Benchmark" onclick="VoronoiDemo.benchmarkToggle();" /> Result: <span id="benchmarkResult">?</span>
 </div>
 <h4 class="divhdr">Canvas <span id="voronoiStats" style="font:normal 11px sans"></span></h4>
 <div id="canvasParent">

@@ -70,12 +70,13 @@ var VoronoiDemo = {
 			cell,
 			site, sites = [],
 			again = false,
-			p, dist;
+			rn, dist;
+		var p = 1 / iCell * 0.1;
 		while (iCell--) {
 			cell = cells[iCell];
-			p = Math.random();
+			rn = Math.random();
 			// probability of apoptosis
-			if (p < 0.02) {
+			if (rn < p) {
 				continue;
 				}
 			site = this.cellCentroid(cell);
@@ -87,7 +88,7 @@ var VoronoiDemo = {
 				site.y = (site.y+cell.site.y)/2;
 				}
 			// probability of mytosis
-			if (p > 0.98) {
+			if (rn > (1-p)) {
 				dist /= 2;
 				sites.push({
 					x: site.x+(site.x-cell.site.x)/dist,
@@ -148,6 +149,7 @@ var VoronoiDemo = {
 
 	compute: function(sites) {
 		this.sites = sites;
+		this.voronoi.recycle(this.diagram);
 		this.diagram = this.voronoi.compute(sites, this.bbox);
 		this.updateStats();
 		this.render();
