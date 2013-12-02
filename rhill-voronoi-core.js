@@ -1,7 +1,8 @@
 /*!
-Copyright (C) 2010-2013 Raymond Hill
+Copyright (C) 2010-2013 Raymond Hill: https://github.com/gorhill/Javascript-Voronoi
 MIT License: See https://github.com/gorhill/Javascript-Voronoi/LICENSE.md
-
+*/
+/*
 Author: Raymond Hill (rhill@raymondhill.net)
 Contributor: Jesse Morgan (morgajel@gmail.com)
 File: rhill-voronoi-core.js
@@ -120,7 +121,8 @@ Voronoi.prototype.reset = function() {
 
 Voronoi.prototype.sqrt = Math.sqrt;
 Voronoi.prototype.abs = Math.abs;
-Voronoi.prototype.EPSILON = 1e-9;
+Voronoi.prototype.ε = Voronoi.ε = 1e-9;
+Voronoi.prototype.invε = Voronoi.invε = 1.0 / Voronoi.ε;
 Voronoi.prototype.equalWithEpsilon = function(a,b){return this.abs(a-b)<1e-9;};
 Voronoi.prototype.greaterThanWithEpsilon = function(a,b){return a-b>1e-9;};
 Voronoi.prototype.greaterThanOrEqualWithEpsilon = function(a,b){return b-a<1e-9;};
@@ -617,6 +619,12 @@ Voronoi.prototype.createVertex = function(x, y) {
         v.x = x;
         v.y = y;
         }
+    // rhill 2013-12-02:
+    // Constraint world domain to reciproqual of epsilon.
+    // https://github.com/gorhill/Javascript-Voronoi/issues/15
+    var invε = this.invε;
+    this.x = Math.max(Math.min(x, invε), -invε);
+    this.y = Math.max(Math.min(y, invε), -invε);
     this.vertices.push(v);
     return v;
     };
@@ -1449,99 +1457,103 @@ Voronoi.prototype.closeCells = function(bbox) {
             va = halfedges[iLeft].getEndpoint();
             vz = halfedges[(iLeft+1) % nHalfedges].getStartpoint();
             // if end point is not equal to start point, we need to add the missing
-            // halfedge(s) to close the cell
+            // halfedge(s) up to vz
             if (abs_fn(va.x-vz.x)>=1e-9 || abs_fn(va.y-vz.y)>=1e-9) {
-                break;
+
+                // rhill 2013-12-02:
+                // "Holes" in the halfedges are not necessarily always adjacent.
+                // https://github.com/gorhill/Javascript-Voronoi/issues/16
+
+                // find entry point:
+                switch (true) {
+
+                    // walk downward along left side
+                    case this.equalWithEpsilon(va.x,xl) && this.lessThanWithEpsilon(va.y,yb):
+                        lastBorderSegment = this.equalWithEpsilon(vz.x,xl);
+                        vb = this.createVertex(xl, lastBorderSegment ? vz.y : yb);
+                        edge = this.createBorderEdge(cell.site, va, vb);
+                        iLeft++;
+                        halfedges.splice(iLeft, 0, this.createHalfedge(edge, cell.site, null));
+                        nHalfedges++;
+                        if ( lastBorderSegment ) { break; }
+                        va = vb;
+                        // fall through
+
+                    // walk rightward along bottom side
+                    case this.equalWithEpsilon(va.y,yb) && this.lessThanWithEpsilon(va.x,xr):
+                        lastBorderSegment = this.equalWithEpsilon(vz.y,yb);
+                        vb = this.createVertex(lastBorderSegment ? vz.x : xr, yb);
+                        edge = this.createBorderEdge(cell.site, va, vb);
+                        iLeft++;
+                        halfedges.splice(iLeft, 0, this.createHalfedge(edge, cell.site, null));
+                        nHalfedges++;
+                        if ( lastBorderSegment ) { break; }
+                        va = vb;
+                        // fall through
+
+                    // walk upward along right side
+                    case this.equalWithEpsilon(va.x,xr) && this.greaterThanWithEpsilon(va.y,yt):
+                        lastBorderSegment = this.equalWithEpsilon(vz.x,xr);
+                        vb = this.createVertex(xr, lastBorderSegment ? vz.y : yt);
+                        edge = this.createBorderEdge(cell.site, va, vb);
+                        iLeft++;
+                        halfedges.splice(iLeft, 0, this.createHalfedge(edge, cell.site, null));
+                        nHalfedges++;
+                        if ( lastBorderSegment ) { break; }
+                        va = vb;
+                        // fall through
+
+                    // walk leftward along top side
+                    case this.equalWithEpsilon(va.y,yt) && this.greaterThanWithEpsilon(va.x,xl):
+                        lastBorderSegment = this.equalWithEpsilon(vz.y,yt);
+                        vb = this.createVertex(lastBorderSegment ? vz.x : xl, yt);
+                        edge = this.createBorderEdge(cell.site, va, vb);
+                        iLeft++;
+                        halfedges.splice(iLeft, 0, this.createHalfedge(edge, cell.site, null));
+                        nHalfedges++;
+                        if ( lastBorderSegment ) { break; }
+                        va = vb;
+                        // fall through
+
+                        // walk downward along left side
+                        lastBorderSegment = this.equalWithEpsilon(vz.x,xl);
+                        vb = this.createVertex(xl, lastBorderSegment ? vz.y : yb);
+                        edge = this.createBorderEdge(cell.site, va, vb);
+                        iLeft++;
+                        halfedges.splice(iLeft, 0, this.createHalfedge(edge, cell.site, null));
+                        nHalfedges++;
+                        if ( lastBorderSegment ) { break; }
+                        va = vb;
+                        // fall through
+
+                        // walk rightward along bottom side
+                        lastBorderSegment = this.equalWithEpsilon(vz.y,yb);
+                        vb = this.createVertex(lastBorderSegment ? vz.x : xr, yb);
+                        edge = this.createBorderEdge(cell.site, va, vb);
+                        iLeft++;
+                        halfedges.splice(iLeft, 0, this.createHalfedge(edge, cell.site, null));
+                        nHalfedges++;
+                        if ( lastBorderSegment ) { break; }
+                        va = vb;
+                        // fall through
+
+                        // walk upward along right side
+                        lastBorderSegment = this.equalWithEpsilon(vz.x,xr);
+                        vb = this.createVertex(xr, lastBorderSegment ? vz.y : yt);
+                        edge = this.createBorderEdge(cell.site, va, vb);
+                        iLeft++;
+                        halfedges.splice(iLeft, 0, this.createHalfedge(edge, cell.site, null));
+                        nHalfedges++;
+                        if ( lastBorderSegment ) { break; }
+                        // fall through
+
+                    default:
+                        throw "Voronoi.closeCells() > this makes no sense!";
+                    }
                 }
             iLeft++;
             }
-        if (iLeft === nHalfedges) {
-            continue;
-            }
-        // if we reach this point, cell needs to be closed by walking
-        // counterclockwise along the bounding box until it connects
-        // to next halfedge in the list
-
-        // find entry point:
-        switch (true) {
-
-        // walk downward along left side
-        case this.equalWithEpsilon(va.x,xl) && this.lessThanWithEpsilon(va.y,yb):
-            lastBorderSegment = this.equalWithEpsilon(vz.x,xl);
-            vb = this.createVertex(xl, lastBorderSegment ? vz.y : yb);
-            edge = this.createBorderEdge(cell.site, va, vb);
-            iLeft++;
-            halfedges.splice(iLeft, 0, this.createHalfedge(edge, cell.site, null));
-            if ( lastBorderSegment ) { break; }
-            va = vb;
-
-        // walk rightward along bottom side
-        case this.equalWithEpsilon(va.y,yb) && this.lessThanWithEpsilon(va.x,xr):
-            lastBorderSegment = this.equalWithEpsilon(vz.y,yb);
-            vb = this.createVertex(lastBorderSegment ? vz.x : xr, yb);
-            edge = this.createBorderEdge(cell.site, va, vb);
-            iLeft++;
-            halfedges.splice(iLeft, 0, this.createHalfedge(edge, cell.site, null));
-            if ( lastBorderSegment ) { break; }
-            va = vb;
-
-        // walk upward along right side
-        case this.equalWithEpsilon(va.x,xr) && this.greaterThanWithEpsilon(va.y,yt):
-            lastBorderSegment = this.equalWithEpsilon(vz.x,xr);
-            vb = this.createVertex(xr, lastBorderSegment ? vz.y : yt);
-            edge = this.createBorderEdge(cell.site, va, vb);
-            iLeft++;
-            halfedges.splice(iLeft, 0, this.createHalfedge(edge, cell.site, null));
-            if ( lastBorderSegment ) { break; }
-            va = vb;
-
-        // walk leftward along top side
-        case this.equalWithEpsilon(va.y,yt) && this.greaterThanWithEpsilon(va.x,xl):
-            lastBorderSegment = this.equalWithEpsilon(vz.y,yt);
-            vb = this.createVertex(lastBorderSegment ? vz.x : xl, yt);
-            edge = this.createBorderEdge(cell.site, va, vb);
-            iLeft++;
-            halfedges.splice(iLeft, 0, this.createHalfedge(edge, cell.site, null));
-            if ( lastBorderSegment ) { break; }
-            va = vb;
-
-            // walk downward along left side
-            lastBorderSegment = this.equalWithEpsilon(vz.x,xl);
-            vb = this.createVertex(xl, lastBorderSegment ? vz.y : yb);
-            edge = this.createBorderEdge(cell.site, va, vb);
-            iLeft++;
-            halfedges.splice(iLeft, 0, this.createHalfedge(edge, cell.site, null));
-            if ( lastBorderSegment ) { break; }
-            va = vb;
-
-            // walk rightward along bottom side
-            lastBorderSegment = this.equalWithEpsilon(vz.y,yb);
-            vb = this.createVertex(lastBorderSegment ? vz.x : xr, yb);
-            edge = this.createBorderEdge(cell.site, va, vb);
-            iLeft++;
-            halfedges.splice(iLeft, 0, this.createHalfedge(edge, cell.site, null));
-            if ( lastBorderSegment ) { break; }
-            va = vb;
-
-            // walk upward along right side
-            lastBorderSegment = this.equalWithEpsilon(vz.x,xr);
-            vb = this.createVertex(xr, lastBorderSegment ? vz.y : yt);
-            edge = this.createBorderEdge(cell.site, va, vb);
-            iLeft++;
-            halfedges.splice(iLeft, 0, this.createHalfedge(edge, cell.site, null));
-            break;
-
-        default:
-            throw "Voronoi.closeCells() > this makes no sense!";
-        }
-
-        // At this point, all halfedges should be connected, or else
-        // this means something went horribly wrong.
-        if ( abs_fn(vb.x-vz.x)>=1e-9 || abs_fn(vb.y-vz.y)>=1e-9 ) {
-            throw "Voronoi.closeCells() > Could not close the Voronoi cell!\n  (See https://github.com/gorhill/Javascript-Voronoi/issues/15)";
-            }
-
-        // cell.closeMe = false;
+        cell.closeMe = false;
         }
     };
 
@@ -1549,7 +1561,7 @@ Voronoi.prototype.closeCells = function(bbox) {
 // Debugging helper
 /*
 Voronoi.prototype.dumpBeachline = function(y) {
-    console.log('Voronoi.dumpBeachline() > Beachsections, from left to right:');
+    console.log('Voronoi.dumpBeachline(%f) > Beachsections, from left to right:', y);
     if ( !this.beachline ) {
         console.log('  None');
         }
@@ -1575,7 +1587,7 @@ Voronoi.prototype.dumpBeachline = function(y) {
 // added.
 
 Voronoi.prototype.quantizeSites = function(sites) {
-    var ε = this.EPSILON,
+    var ε = this.ε,
         n = sites.length,
         site;
     while ( n-- ) {
