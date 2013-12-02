@@ -619,12 +619,6 @@ Voronoi.prototype.createVertex = function(x, y) {
         v.x = x;
         v.y = y;
         }
-    // rhill 2013-12-02:
-    // Constraint world domain to reciproqual of epsilon.
-    // https://github.com/gorhill/Javascript-Voronoi/issues/15
-    var invε = this.invε;
-    this.x = Math.max(Math.min(x, invε), -invε);
-    this.y = Math.max(Math.min(y, invε), -invε);
     this.vertices.push(v);
     return v;
     };
@@ -1220,13 +1214,22 @@ Voronoi.prototype.connectEdge = function(edge, bbox) {
     // depending on the direction, find the best side of the
     // bounding box to use to determine a reasonable start point
 
+    // rhill 2013-12-02:
+    // While at it, since we have the values which define the line,
+    // clip the end of va if it is outside the bbox.
+    // https://github.com/gorhill/Javascript-Voronoi/issues/15
+    // TODO: Do all the clipping here rather than rely on Liang-Barsky
+    // which does not do well sometimes due to loss of arithmetic
+    // precision. The code here doesn't degrade if one of the vertex is
+    // at a huge distance.
+
     // special case: vertical line
     if (fm === undefined) {
         // doesn't intersect with viewport
         if (fx < xl || fx >= xr) {return false;}
         // downward
         if (lx > rx) {
-            if (!va) {
+            if (!va || va.y < yt) {
                 va = this.createVertex(fx, yt);
                 }
             else if (va.y >= yb) {
@@ -1236,7 +1239,7 @@ Voronoi.prototype.connectEdge = function(edge, bbox) {
             }
         // upward
         else {
-            if (!va) {
+            if (!va || va.y > yb) {
                 va = this.createVertex(fx, yb);
                 }
             else if (va.y < yt) {
@@ -1250,7 +1253,7 @@ Voronoi.prototype.connectEdge = function(edge, bbox) {
     else if (fm < -1 || fm > 1) {
         // downward
         if (lx > rx) {
-            if (!va) {
+            if (!va || va.y < yt) {
                 va = this.createVertex((yt-fb)/fm, yt);
                 }
             else if (va.y >= yb) {
@@ -1260,7 +1263,7 @@ Voronoi.prototype.connectEdge = function(edge, bbox) {
             }
         // upward
         else {
-            if (!va) {
+            if (!va || va.y > yb) {
                 va = this.createVertex((yb-fb)/fm, yb);
                 }
             else if (va.y < yt) {
@@ -1274,7 +1277,7 @@ Voronoi.prototype.connectEdge = function(edge, bbox) {
     else {
         // rightward
         if (ly < ry) {
-            if (!va) {
+            if (!va || va.x < xl) {
                 va = this.createVertex(xl, fm*xl+fb);
                 }
             else if (va.x >= xr) {
@@ -1284,7 +1287,7 @@ Voronoi.prototype.connectEdge = function(edge, bbox) {
             }
         // leftward
         else {
-            if (!va) {
+            if (!va || va.x > xr) {
                 va = this.createVertex(xr, fm*xr+fb);
                 }
             else if (va.x < xl) {
