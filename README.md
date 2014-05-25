@@ -178,11 +178,11 @@ object.
 this ```Voronoi.Halfedge``` object.
 
 * ```getStartpoint()```: a method returning a ```Voronoi.Vertex``` of the start
-point of this halfedge. Keep in mind halfedges are always countercockwise.
+point of this halfedge. Keep in mind halfedges are always counterclockwise.
 
 * ```getEndpoint()```: a method returning a ```Voronoi.Vertex``` object with
 an ```x``` and a ```y``` property for the end point of this halfedge. Keep in
-mind halfedges are always countercockwise.
+mind halfedges are always counterclockwise.
 
 ## License
 
