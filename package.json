@@ -1,0 +1,19 @@
+{
+  "name": "voronoi",
+  "version": "1.0.0",
+  "description": "A Javascript implementation of Steven J. Fortune's algorithm to efficiently compute Voronoi diagrams. The Voronoi object's purpose is to solely compute a Voronoi diagram, it is completely standalone, with no dependency on external code: it contains no rendering code: that is left to the user of the library.",
+  "main": "rhill-voronoi-core.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gorhill/Javascript-Voronoi.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/gorhill/Javascript-Voronoi/issues"
+  },
+  "homepage": "https://github.com/gorhill/Javascript-Voronoi"
+}
