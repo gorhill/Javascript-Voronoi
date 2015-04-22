@@ -1717,4 +1717,8 @@ Voronoi.prototype.compute = function(sites, bbox) {
     return diagram;
     };
 
-if(typeof module !== 'undefined') module.exports = Voronoi;
+/******************************************************************************/
+
+if ( typeof module !== 'undefined' ) {
+    module.exports = Voronoi;
+}
