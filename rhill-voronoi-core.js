@@ -119,8 +119,8 @@ Voronoi.prototype.reset = function() {
     this.cells = [];
     };
 
-Voronoi.prototype.sqrt = Math.sqrt;
-Voronoi.prototype.abs = Math.abs;
+Voronoi.prototype.sqrt = function(n){return Math.sqrt(n);};
+Voronoi.prototype.abs = function(n){return Math.abs(n);};
 Voronoi.prototype.ε = Voronoi.ε = 1e-9;
 Voronoi.prototype.invε = Voronoi.invε = 1.0 / Voronoi.ε;
 Voronoi.prototype.equalWithEpsilon = function(a,b){return this.abs(a-b)<1e-9;};
@@ -1352,7 +1352,7 @@ Voronoi.prototype.clipEdge = function(edge, bbox) {
         if (r>t1) {return false;}
         if (r>t0) {t0=r;}
         }
-    // bottom        
+    // bottom
     q = bbox.yb-ay;
     if (dy===0 && q<0) {return false;}
     r = q/dy;
