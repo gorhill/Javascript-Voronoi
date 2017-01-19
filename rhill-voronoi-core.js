@@ -419,71 +419,6 @@ Voronoi.prototype.RBTree.prototype.getLast = function(node) {
     };
 
 // ---------------------------------------------------------------------------
-// Linked List
-
-Voronoi.prototype.LinkedList = function() {
-    this.length = 0;
-    this.first  = null;
-    this.last   = null;
-};
-
-Voronoi.prototype.LinkedList.prototype.push = function(element) {
-    if(this.last) {
-        this.last.next = element;
-        element.prev = this.last;
-        this.last = element;
-        }
-    else {
-        this.first = this.last = element;
-        }
-    ++this.length;
-};
-
-Voronoi.prototype.LinkedList.prototype.remove = function(element) {
-    if(element.prev && element.next) {
-        element.prev.next = element.next;
-        element.next.prev = element.prev;
-        }
-    else if(element.prev) {
-        element.prev.next = null;
-        this.last = element.prev;
-        }
-    else if(element.next) {
-        element.next.prev = null;
-        this.first = element.next;
-        }
-
-    --this.length;
-
-    if(!this.length) {
-        this.first = null;
-        this.last  = null;
-        }
-    };
-
-Voronoi.prototype.LinkedList.prototype.insertAfter = function(prev,element) {
-    element.next = prev.next;
-
-    if(prev.next) {
-        prev.next.prev = element;
-        }
-    else {
-        this.last = element;
-        }
-
-    prev.next = element;
-    element.prev = prev;
-
-    ++this.length;
-};
-
-Voronoi.prototype.LinkedList.prototype.reset = function() {
-    this.length = 0;
-    this.first  = null;
-    this.last   = null;
-};
-
-// ---------------------------------------------------------------------------
 // Diagram methods
 
 Voronoi.prototype.Diagram = function(site) {
@@ -619,6 +554,71 @@ Voronoi.prototype.Cell.prototype.pointIntersection = function(x, y) {
         }
     return 1;
     };
+
+// ---------------------------------------------------------------------------
+// Halfedge Linked List
+
+Voronoi.prototype.Cell.prototype.HalfedgeList = function() {
+    this.length = 0;
+    this.first  = null;
+    this.last   = null;
+};
+
+Voronoi.prototype.Cell.prototype.HalfedgeList.prototype.push = function(element) {
+    if(this.last) {
+        this.last.next = element;
+        element.prev = this.last;
+        this.last = element;
+        }
+    else {
+        this.first = this.last = element;
+        }
+    ++this.length;
+};
+
+Voronoi.prototype.Cell.prototype.HalfedgeList.prototype.remove = function(element) {
+    if(element.prev && element.next) {
+        element.prev.next = element.next;
+        element.next.prev = element.prev;
+        }
+    else if(element.prev) {
+        element.prev.next = null;
+        this.last = element.prev;
+        }
+    else if(element.next) {
+        element.next.prev = null;
+        this.first = element.next;
+        }
+
+    --this.length;
+
+    if(!this.length) {
+        this.first = null;
+        this.last  = null;
+        }
+    };
+
+Voronoi.prototype.Cell.prototype.HalfedgeList.prototype.insertAfter = function(prev,element) {
+    element.next = prev.next;
+
+    if(prev.next) {
+        prev.next.prev = element;
+        }
+    else {
+        this.last = element;
+        }
+
+    prev.next = element;
+    element.prev = prev;
+
+    ++this.length;
+};
+
+Voronoi.prototype.Cell.prototype.HalfedgeList.prototype.reset = function() {
+    this.length = 0;
+    this.first  = null;
+    this.last   = null;
+};
 
 // ---------------------------------------------------------------------------
 // Edge methods
