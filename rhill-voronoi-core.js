@@ -430,13 +430,13 @@ Voronoi.prototype.Diagram = function(site) {
 
 Voronoi.prototype.Cell = function(site) {
     this.site = site;
-    this.halfedges = [];
+    this.halfedges = new this.HalfedgeList();
     this.closeMe = false;
     };
 
 Voronoi.prototype.Cell.prototype.init = function(site) {
     this.site = site;
-    this.halfedges = [];
+    this.halfedges.reset();
     this.closeMe = false;
     return this;
     };
@@ -451,16 +451,17 @@ Voronoi.prototype.createCell = function(site) {
 
 Voronoi.prototype.Cell.prototype.prepareHalfedges = function() {
     var halfedges = this.halfedges,
-        iHalfedge = halfedges.length,
+        halfedge  = halfedges.first,
         edge;
     // get rid of unused halfedges
     // rhill 2011-05-27: Keep it simple, no point here in trying
     // to be fancy: dangling edges are a typically a minority.
-    while (iHalfedge--) {
-        edge = halfedges[iHalfedge].edge;
+    while(halfedge) {
+        edge = halfedge.edge;
         if (!edge.vb || !edge.va) {
-            halfedges.splice(iHalfedge,1);
+            halfedges.remove(halfedge);
             }
+        halfedge = halfedge.next;
         }
 
     // rhill 2011-05-26: I tried to use a binary search at insertion
@@ -468,23 +469,26 @@ Voronoi.prototype.Cell.prototype.prepareHalfedges = function() {
     // There was no real benefits in doing so, performance on
     // Firefox 3.6 was improved marginally, while performance on
     // Opera 11 was penalized marginally.
-    halfedges.sort(function(a,b){return b.angle-a.angle;});
+
+    halfedges.sort();
+
     return halfedges.length;
     };
 
 // Return a list of the neighbor Ids
 Voronoi.prototype.Cell.prototype.getNeighborIds = function() {
     var neighbors = [],
-        iHalfedge = this.halfedges.length,
+        halfedge = this.halfedges.last,
         edge;
-    while (iHalfedge--){
-        edge = this.halfedges[iHalfedge].edge;
+    while (halfedge){
+        edge = halfedge.edge;
         if (edge.lSite !== null && edge.lSite.voronoiId != this.site.voronoiId) {
             neighbors.push(edge.lSite.voronoiId);
             }
         else if (edge.rSite !== null && edge.rSite.voronoiId != this.site.voronoiId){
             neighbors.push(edge.rSite.voronoiId);
             }
+        halfedge = halfedge.prev;
         }
     return neighbors;
     };
@@ -493,14 +497,14 @@ Voronoi.prototype.Cell.prototype.getNeighborIds = function() {
 //
 Voronoi.prototype.Cell.prototype.getBbox = function() {
     var halfedges = this.halfedges,
-        iHalfedge = halfedges.length,
+        halfedge = halfedges.last,
         xmin = Infinity,
         ymin = Infinity,
         xmax = -Infinity,
         ymax = -Infinity,
         v, vx, vy;
-    while (iHalfedge--) {
-        v = halfedges[iHalfedge].getStartpoint();
+    while (halfedge) {
+        v = halfedge.getStartpoint();
         vx = v.x;
         vy = v.y;
         if (vx < xmin) {xmin = vx;}
@@ -509,6 +513,7 @@ Voronoi.prototype.Cell.prototype.getBbox = function() {
         if (vy > ymax) {ymax = vy;}
         // we dont need to take into account end point,
         // since each end point matches a start point
+        halfedge = halfedge.prev;
         }
     return {
         x: xmin,
@@ -537,11 +542,9 @@ Voronoi.prototype.Cell.prototype.pointIntersection = function(x, y) {
     //   "if greater than 0 it is to the left, if equal to 0 then it lies
     //   "on the line segment"
     var halfedges = this.halfedges,
-        iHalfedge = halfedges.length,
-        halfedge,
+        halfedge = halfedges.last,
         p0, p1, r;
-    while (iHalfedge--) {
-        halfedge = halfedges[iHalfedge];
+    while (halfedge) {
         p0 = halfedge.getStartpoint();
         p1 = halfedge.getEndpoint();
         r = (y-p0.y)*(p1.x-p0.x)-(x-p0.x)*(p1.y-p0.y);
@@ -551,6 +554,7 @@ Voronoi.prototype.Cell.prototype.pointIntersection = function(x, y) {
         if (r > 0) {
             return -1;
             }
+        halfedge = halfedge.prev;
         }
     return 1;
     };
@@ -562,7 +566,13 @@ Voronoi.prototype.Cell.prototype.HalfedgeList = function() {
     this.length = 0;
     this.first  = null;
     this.last   = null;
-};
+    };
+
+Voronoi.prototype.Cell.prototype.HalfedgeList.prototype.reset = function() {
+    this.length = 0;
+    this.first  = null;
+    this.last   = null;
+    };
 
 Voronoi.prototype.Cell.prototype.HalfedgeList.prototype.push = function(element) {
     if(this.last) {
@@ -574,7 +584,7 @@ Voronoi.prototype.Cell.prototype.HalfedgeList.prototype.push = function(element)
         this.first = this.last = element;
         }
     ++this.length;
-};
+    };
 
 Voronoi.prototype.Cell.prototype.HalfedgeList.prototype.remove = function(element) {
     if(element.prev && element.next) {
@@ -612,13 +622,54 @@ Voronoi.prototype.Cell.prototype.HalfedgeList.prototype.insertAfter = function(p
     element.prev = prev;
 
     ++this.length;
-};
+    };
 
-Voronoi.prototype.Cell.prototype.HalfedgeList.prototype.reset = function() {
-    this.length = 0;
-    this.first  = null;
-    this.last   = null;
-};
+Voronoi.prototype.Cell.prototype.HalfedgeList.prototype.sort = function() {
+    // NOTE: This is a simple insertion sort as usually the amount of halfedges per cell
+    // is not large enough to benefit from quicksort or other O(n log n) sorting methods.
+
+    if(this.length < 2) {
+        return;
+        }
+
+    var current = this.first,
+        next    = current.next;
+
+    while(next) {
+        current = next;
+        next    = next.next;
+
+        var prev = current.prev,
+            x    = current.angle;
+
+        if(prev.angle < x) {
+            while(prev && prev.angle < x) {
+                prev = prev.prev;
+                }
+
+            current.prev.next = current.next;
+            if(current.next) {
+                current.next.prev = current.prev;
+                }
+            else {
+                this.last = current.prev;
+                }
+
+            current.prev = prev;
+
+            if(prev) {
+                current.next = prev.next;
+                prev.next = current;
+                }
+            else {
+                current.next = this.first;
+                this.first = current;
+                }
+
+            current.next.prev = current;
+            }
+        }
+    };
 
 // ---------------------------------------------------------------------------
 // Edge methods
@@ -638,6 +689,11 @@ Voronoi.prototype.Edge = function(lSite, rSite) {
 Voronoi.prototype.Halfedge = function(edge, lSite, rSite) {
     this.site = lSite;
     this.edge = edge;
+
+    // Linked list properties
+    this.prev  = null;
+    this.next  = null;
+
     // 'angle' is a value to be used for properly sorting the
     // halfsegments counterclockwise. By convention, we will
     // use the angle of the line defined by the 'site to the left'
@@ -1494,8 +1550,8 @@ Voronoi.prototype.closeCells = function(bbox) {
         cells = this.cells,
         iCell = cells.length,
         cell,
-        iLeft,
-        halfedges, nHalfedges,
+        halfedges,
+        halfedge,
         edge,
         va, vb, vz,
         lastBorderSegment,
@@ -1515,15 +1571,14 @@ Voronoi.prototype.closeCells = function(bbox) {
         // an 'unclosed' point will be the end point of a halfedge which
         // does not match the start point of the following halfedge
         halfedges = cell.halfedges;
-        nHalfedges = halfedges.length;
+        halfedge = halfedges.first;
         // special case: only one site, in which case, the viewport is the cell
         // ...
 
         // all other cases
-        iLeft = 0;
-        while (iLeft < nHalfedges) {
-            va = halfedges[iLeft].getEndpoint();
-            vz = halfedges[(iLeft+1) % nHalfedges].getStartpoint();
+        while (halfedge) {
+            va = halfedge.getEndpoint();
+            vz = (halfedge.next || halfedges.first).getStartpoint();
             // if end point is not equal to start point, we need to add the missing
             // halfedge(s) up to vz
             if (abs_fn(va.x-vz.x)>=1e-9 || abs_fn(va.y-vz.y)>=1e-9) {
@@ -1540,9 +1595,8 @@ Voronoi.prototype.closeCells = function(bbox) {
                         lastBorderSegment = this.equalWithEpsilon(vz.x,xl);
                         vb = this.createVertex(xl, lastBorderSegment ? vz.y : yb);
                         edge = this.createBorderEdge(cell.site, va, vb);
-                        iLeft++;
-                        halfedges.splice(iLeft, 0, this.createHalfedge(edge, cell.site, null));
-                        nHalfedges++;
+                        halfedges.insertAfter(halfedge, this.createHalfedge(edge, cell.site, null));
+                        halfedge = halfedge.next;
                         if ( lastBorderSegment ) { break; }
                         va = vb;
                         // fall through
@@ -1552,9 +1606,8 @@ Voronoi.prototype.closeCells = function(bbox) {
                         lastBorderSegment = this.equalWithEpsilon(vz.y,yb);
                         vb = this.createVertex(lastBorderSegment ? vz.x : xr, yb);
                         edge = this.createBorderEdge(cell.site, va, vb);
-                        iLeft++;
-                        halfedges.splice(iLeft, 0, this.createHalfedge(edge, cell.site, null));
-                        nHalfedges++;
+                        halfedges.insertAfter(halfedge, this.createHalfedge(edge, cell.site, null));
+                        halfedge = halfedge.next;
                         if ( lastBorderSegment ) { break; }
                         va = vb;
                         // fall through
@@ -1564,9 +1617,8 @@ Voronoi.prototype.closeCells = function(bbox) {
                         lastBorderSegment = this.equalWithEpsilon(vz.x,xr);
                         vb = this.createVertex(xr, lastBorderSegment ? vz.y : yt);
                         edge = this.createBorderEdge(cell.site, va, vb);
-                        iLeft++;
-                        halfedges.splice(iLeft, 0, this.createHalfedge(edge, cell.site, null));
-                        nHalfedges++;
+                        halfedges.insertAfter(halfedge, this.createHalfedge(edge, cell.site, null));
+                        halfedge = halfedge.next;
                         if ( lastBorderSegment ) { break; }
                         va = vb;
                         // fall through
@@ -1576,9 +1628,8 @@ Voronoi.prototype.closeCells = function(bbox) {
                         lastBorderSegment = this.equalWithEpsilon(vz.y,yt);
                         vb = this.createVertex(lastBorderSegment ? vz.x : xl, yt);
                         edge = this.createBorderEdge(cell.site, va, vb);
-                        iLeft++;
-                        halfedges.splice(iLeft, 0, this.createHalfedge(edge, cell.site, null));
-                        nHalfedges++;
+                        halfedges.insertAfter(halfedge, this.createHalfedge(edge, cell.site, null));
+                        halfedge = halfedge.next;
                         if ( lastBorderSegment ) { break; }
                         va = vb;
                         // fall through
@@ -1587,9 +1638,8 @@ Voronoi.prototype.closeCells = function(bbox) {
                         lastBorderSegment = this.equalWithEpsilon(vz.x,xl);
                         vb = this.createVertex(xl, lastBorderSegment ? vz.y : yb);
                         edge = this.createBorderEdge(cell.site, va, vb);
-                        iLeft++;
-                        halfedges.splice(iLeft, 0, this.createHalfedge(edge, cell.site, null));
-                        nHalfedges++;
+                        halfedges.insertAfter(halfedge, this.createHalfedge(edge, cell.site, null));
+                        halfedge = halfedge.next;
                         if ( lastBorderSegment ) { break; }
                         va = vb;
                         // fall through
@@ -1598,9 +1648,8 @@ Voronoi.prototype.closeCells = function(bbox) {
                         lastBorderSegment = this.equalWithEpsilon(vz.y,yb);
                         vb = this.createVertex(lastBorderSegment ? vz.x : xr, yb);
                         edge = this.createBorderEdge(cell.site, va, vb);
-                        iLeft++;
-                        halfedges.splice(iLeft, 0, this.createHalfedge(edge, cell.site, null));
-                        nHalfedges++;
+                        halfedges.insertAfter(halfedge, this.createHalfedge(edge, cell.site, null));
+                        halfedge = halfedge.next;
                         if ( lastBorderSegment ) { break; }
                         va = vb;
                         // fall through
@@ -1609,9 +1658,8 @@ Voronoi.prototype.closeCells = function(bbox) {
                         lastBorderSegment = this.equalWithEpsilon(vz.x,xr);
                         vb = this.createVertex(xr, lastBorderSegment ? vz.y : yt);
                         edge = this.createBorderEdge(cell.site, va, vb);
-                        iLeft++;
-                        halfedges.splice(iLeft, 0, this.createHalfedge(edge, cell.site, null));
-                        nHalfedges++;
+                        halfedges.insertAfter(halfedge, this.createHalfedge(edge, cell.site, null));
+                        halfedge = halfedge.next;
                         if ( lastBorderSegment ) { break; }
                         // fall through
 
@@ -1619,7 +1667,7 @@ Voronoi.prototype.closeCells = function(bbox) {
                         throw "Voronoi.closeCells() > this makes no sense!";
                     }
                 }
-            iLeft++;
+            halfedge = halfedge.next;
             }
         cell.closeMe = false;
         }
