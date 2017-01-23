@@ -800,7 +800,6 @@ Voronoi.prototype.removeBeachsection = function(beachsection) {
         vertex = this.createVertex(x, y),
         previous = beachsection.rbPrevious,
         next = beachsection.rbNext,
-        disappearingTransitions = [beachsection],
         abs_fn = Math.abs;
 
     // remove collapsed beachsection from beachline
@@ -816,51 +815,47 @@ Voronoi.prototype.removeBeachsection = function(beachsection) {
     // on their left/right side.
 
     // look left
-    var lArc = previous;
-    while (lArc.circleEvent && abs_fn(x-lArc.circleEvent.x)<1e-9 && abs_fn(y-lArc.circleEvent.ycenter)<1e-9) {
+    var lArc = previous,
+        circleEvent = lArc.circleEvent;
+
+    this.setEdgeStartpoint(beachsection.edge, lArc.site, beachsection.site, vertex);
+
+    while (circleEvent && abs_fn(x-circleEvent.x)<1e-9 && abs_fn(y-circleEvent.ycenter)<1e-9) {
         previous = lArc.rbPrevious;
-        disappearingTransitions.unshift(lArc);
         this.detachBeachsection(lArc); // mark for reuse
+        this.setEdgeStartpoint(lArc.edge, previous.site, lArc.site, vertex);
         lArc = previous;
+        circleEvent = lArc.circleEvent;
         }
     // even though it is not disappearing, I will also add the beach section
     // immediately to the left of the left-most collapsed beach section, for
     // convenience, since we need to refer to it later as this beach section
     // is the 'left' site of an edge for which a start point is set.
-    disappearingTransitions.unshift(lArc);
     this.detachCircleEvent(lArc);
 
     // look right
     var rArc = next;
-    while (rArc.circleEvent && abs_fn(x-rArc.circleEvent.x)<1e-9 && abs_fn(y-rArc.circleEvent.ycenter)<1e-9) {
+    circleEvent = rArc.circleEvent;
+
+    this.setEdgeStartpoint(rArc.edge, beachsection.site, rArc.site, vertex);
+
+    while (circleEvent && abs_fn(x-circleEvent.x)<1e-9 && abs_fn(y-circleEvent.ycenter)<1e-9) {
         next = rArc.rbNext;
-        disappearingTransitions.push(rArc);
         this.detachBeachsection(rArc); // mark for reuse
+        this.setEdgeStartpoint(next.edge, rArc.site, next.site, vertex);
         rArc = next;
+        circleEvent = rArc.circleEvent;
         }
     // we also have to add the beach section immediately to the right of the
     // right-most collapsed beach section, since there is also a disappearing
     // transition representing an edge's start point on its left.
-    disappearingTransitions.push(rArc);
     this.detachCircleEvent(rArc);
-
-    // walk through all the disappearing transitions between beach sections and
-    // set the start point of their (implied) edge.
-    var nArcs = disappearingTransitions.length,
-        iArc;
-    for (iArc=1; iArc<nArcs; iArc++) {
-        rArc = disappearingTransitions[iArc];
-        lArc = disappearingTransitions[iArc-1];
-        this.setEdgeStartpoint(rArc.edge, lArc.site, rArc.site, vertex);
-        }
 
     // create a new edge as we have now a new transition between
     // two beach sections which were previously not adjacent.
     // since this edge appears as a new vertex is defined, the vertex
     // actually define an end point of the edge (relative to the site
     // on the left)
-    lArc = disappearingTransitions[0];
-    rArc = disappearingTransitions[nArcs-1];
     rArc.edge = this.createEdge(lArc.site, rArc.site, undefined, vertex);
 
     // create circle events if any for beach sections left in the beachline
@@ -1352,7 +1347,7 @@ Voronoi.prototype.clipEdge = function(edge, bbox) {
         if (r>t1) {return false;}
         if (r>t0) {t0=r;}
         }
-    // bottom        
+    // bottom
     q = bbox.yb-ay;
     if (dy===0 && q<0) {return false;}
     r = q/dy;
