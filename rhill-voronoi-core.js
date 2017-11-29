@@ -1352,7 +1352,7 @@ Voronoi.prototype.clipEdge = function(edge, bbox) {
         if (r>t1) {return false;}
         if (r>t0) {t0=r;}
         }
-    // bottom        
+    // bottom
     q = bbox.yb-ay;
     if (dy===0 && q<0) {return false;}
     r = q/dy;
@@ -1397,7 +1397,8 @@ Voronoi.prototype.clipEdge = function(edge, bbox) {
 Voronoi.prototype.clipEdges = function(bbox) {
     // connect all dangling edges to bounding box
     // or get rid of them if it can't be done
-    var edges = this.edges,
+    var newEdges = [],
+        edges = this.edges,
         iEdge = edges.length,
         edge,
         abs_fn = Math.abs;
@@ -1413,8 +1414,11 @@ Voronoi.prototype.clipEdges = function(bbox) {
             (abs_fn(edge.va.x-edge.vb.x)<1e-9 && abs_fn(edge.va.y-edge.vb.y)<1e-9)) {
             edge.va = edge.vb = null;
             edges.splice(iEdge,1);
+            } else {
+            newEdges.unshift(edge);
             }
-        }
+      }
+      this.edges = newEdges;
     };
 
 // Close the cells.
