@@ -1413,7 +1413,6 @@ Voronoi.prototype.clipEdges = function(bbox) {
             !this.clipEdge(edge, bbox) ||
             (abs_fn(edge.va.x-edge.vb.x)<1e-9 && abs_fn(edge.va.y-edge.vb.y)<1e-9)) {
             edge.va = edge.vb = null;
-            edges.splice(iEdge,1);
             } else {
             newEdges.unshift(edge);
             }
